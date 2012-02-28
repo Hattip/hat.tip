@@ -4,7 +4,7 @@ import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.specification.AfterExample
 import org.specs2.specification.BeforeExample
 import com.codecommit.antixml.Selector.stringToSelector
-import in.nene.hattip.Hattip.str2HttpEndpoint
+import in.hattip.Hattip.str2HttpEndpoint
 import org.specs2.runner.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
