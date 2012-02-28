@@ -1,7 +1,12 @@
-.cache
-.classpath
-.gradle
-.project
-.settings
 bin
+target
 build
+*.iml
+*.ipr
+*.iws
+.idea
+.gradle
+.settings
+.classpath
+.project
+.cache
