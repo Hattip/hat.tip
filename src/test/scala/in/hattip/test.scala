@@ -53,7 +53,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     }
     
     "parse data as anti-xml" in {
-      val xml = (host / "index.xml" get) asAnti;
+      val xml = (host / "index.xml" get) asAntiXml;
       val dependencies = xml\\"dependencies"\"dependency"
       dependencies.length must_==(3)
     }
