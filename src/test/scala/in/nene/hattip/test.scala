@@ -26,6 +26,17 @@ class TestHandler extends AbstractHandler {
       req match {
         case Req("GET","/") => 
           response.getWriter().println("<html>Hello World!</html>")
+        case Req("GET","/index.xml") => 
+          response.setContentType("text/xml;charset=utf-8")
+          response.getWriter().println("""
+              <project name="hat.tip">
+        		  <dependencies>
+        		  	<dependency group="org.eclipse.jetty.aggregate" name="jetty-websocket"/>
+        		  	<dependency group="org.eclipse.jetty.aggregate" name="jetty-client"/>
+        		  	<dependency group="com.codecommit" name="anti-xml"/>
+        		  </dependencies>
+              </project>
+              """)
         case Req("GET","/nonexistent.file") =>
           response.setStatus(HttpServletResponse.SC_NOT_FOUND)
         case Req("POST","/post.do") =>
@@ -59,21 +70,22 @@ object TestServer {
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
   def before = TestServer.start()
   def after = TestServer.stop()
-  
+  val host = "http://localhost:8088"
+    
   "The hattip client library" should { 
 	"fetch a page successfully" in { 
-	  val resp = "http://localhost:8088" get;
+	  val resp = host get;
       resp.code must_== 200
       resp.str must contain("<html>Hello World!</html>")
     } 
 	"detect a 404 or other http codes appropriately" in {
-	  val resp = "http://localhost:8088/nonexistent.file" get;
+	  val resp = host / "nonexistent.file" get;
       resp.code must_== 404
 	}
 	"skip the normal handler block in case of non 200, yet reach the error handler" in {
 	  var enteredSuccessBlock = false;
 	  var capturedInErrorBlock = false;
-	  val resp = "http://localhost:8088/nonexistent.file" get {
+	  val resp = host / "nonexistent.file" get {
 	    rsp => enteredSuccessBlock = true;
 	  } onErrorCode {
 	    case(404) => capturedInErrorBlock = true;
@@ -83,11 +95,21 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       capturedInErrorBlock must_==(true)
 	}
 	"post data successfully" in { 
-	  val resp = "http://localhost:8088/post.do" post("""This is 
+	  val resp = host / "post.do" post("""This is 
 	        very very long
 	  		a long string""");
       resp.code must_== 200
       resp.str must contain("very very long")
     } 
+	"parse data as xml" in {
+	  val xml = (host / "index.xml" get) asXml;
+	  val dependencies = xml\\"dependencies"\"dependency"
+	  dependencies.length must_==(3)
+	}
+	"parse data as anti-xml" in {
+	  val xml = (host / "index.xml" get) asAnti;
+	  val dependencies = xml\\"dependencies"\"dependency"
+	  dependencies.length must_==(3)
+	}
   }
 }
