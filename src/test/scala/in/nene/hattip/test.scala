@@ -30,11 +30,11 @@ class TestHandler extends AbstractHandler {
           response.setContentType("text/xml;charset=utf-8")
           response.getWriter().println("""
               <project name="hat.tip">
-        		  <dependencies>
-        		  	<dependency group="org.eclipse.jetty.aggregate" name="jetty-websocket"/>
-        		  	<dependency group="org.eclipse.jetty.aggregate" name="jetty-client"/>
-        		  	<dependency group="com.codecommit" name="anti-xml"/>
-        		  </dependencies>
+                  <dependencies>
+                      <dependency group="org.eclipse.jetty.aggregate" name="jetty-websocket"/>
+                      <dependency group="org.eclipse.jetty.aggregate" name="jetty-client"/>
+                      <dependency group="com.codecommit" name="anti-xml"/>
+                  </dependencies>
               </project>
               """)
         case Req("GET","/nonexistent.file") =>
@@ -45,15 +45,15 @@ class TestHandler extends AbstractHandler {
           var line = reader.readLine()
           while (line != null)
           {
-        	  line = reader.readLine()
-        	  content += line
+              line = reader.readLine()
+              content += line
           }
           val body = content.toList
           response.getWriter().println(body)
       }
       baseReq.setHandled(true)
     }
-}	    
+}        
 
 object TestServer {
     val server = new Server(8088)
@@ -73,43 +73,48 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
   val host = "http://localhost:8088"
     
   "The hattip client library" should { 
-	"fetch a page successfully" in { 
-	  val resp = host get;
+    "fetch a page successfully" in { 
+      val resp = host get;
       resp.code must_== 200
       resp.str must contain("<html>Hello World!</html>")
-    } 
-	"detect a 404 or other http codes appropriately" in {
-	  val resp = host / "nonexistent.file" get;
+    }
+    
+    "detect a 404 or other http codes appropriately" in {
+      val resp = host / "nonexistent.file" get;
       resp.code must_== 404
-	}
-	"skip the normal handler block in case of non 200, yet reach the error handler" in {
-	  var enteredSuccessBlock = false;
-	  var capturedInErrorBlock = false;
-	  val resp = host / "nonexistent.file" get {
-	    rsp => enteredSuccessBlock = true;
-	  } onErrorCode {
-	    case(404) => capturedInErrorBlock = true;
-	    case _ => ;
-	  }
+    }
+    
+    "skip the normal handler block in case of non 200, yet reach the error handler" in {
+      var enteredSuccessBlock = false;
+      var capturedInErrorBlock = false;
+      val resp = host / "nonexistent.file" get {
+        rsp => enteredSuccessBlock = true;
+      } onErrorCode {
+        case(404) => capturedInErrorBlock = true;
+        case _ => ;
+      }
       enteredSuccessBlock must_==(false)
       capturedInErrorBlock must_==(true)
-	}
-	"post data successfully" in { 
-	  val resp = host / "post.do" post("""This is 
-	        very very long
-	  		a long string""");
+    }
+    
+    "post data successfully" in { 
+      val resp = host / "post.do" post("""This is 
+            very very long
+              a long string""");
       resp.code must_== 200
       resp.str must contain("very very long")
-    } 
-	"parse data as xml" in {
-	  val xml = (host / "index.xml" get) asXml;
-	  val dependencies = xml\\"dependencies"\"dependency"
-	  dependencies.length must_==(3)
-	}
-	"parse data as anti-xml" in {
-	  val xml = (host / "index.xml" get) asAnti;
-	  val dependencies = xml\\"dependencies"\"dependency"
-	  dependencies.length must_==(3)
-	}
+    }
+    
+    "parse data as xml" in {
+      val xml = (host / "index.xml" get) asXml;
+      val dependencies = xml\\"dependencies"\"dependency"
+      dependencies.length must_==(3)
+    }
+    
+    "parse data as anti-xml" in {
+      val xml = (host / "index.xml" get) asAnti;
+      val dependencies = xml\\"dependencies"\"dependency"
+      dependencies.length must_==(3)
+    }
   }
 }
