@@ -1,4 +1,4 @@
-package in.nene.hattip {
+package in.hattip {
 
   import org.eclipse.jetty.client.ContentExchange
   import org.eclipse.jetty.client.HttpClient

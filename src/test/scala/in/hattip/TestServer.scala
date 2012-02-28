@@ -1,4 +1,4 @@
-package in.nene.hattip
+package in.hattip
 import javax.servlet.http.HttpServletRequest
 import org.eclipse.jetty.server.Server
 import javax.servlet.http.HttpServletResponse

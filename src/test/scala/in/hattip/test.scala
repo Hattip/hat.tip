@@ -1,4 +1,4 @@
-package in.nene.hattip
+package in.hattip
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.specification.AfterExample
