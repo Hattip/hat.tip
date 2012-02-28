@@ -58,6 +58,11 @@ abstract class HttpEndpoint protected(str: String) {
       exchange.getResponseFields(),
       exchange.getResponseContent())
   }
+
+  def ?(elements: (String, String)*) = {
+    val res = elements map tupled(_ + "=" + _) mkString "&"
+    new HttpEndpointInQueryParamMode(str + "?" + res)
+  }
 }
 
 object HttpEndpoint {
@@ -68,12 +73,7 @@ class HttpEndpointInUriMode(str: String) extends HttpEndpoint(str) {
   def /(additional: String) = new HttpEndpointInUriMode(str + "/" + additional)
 }
 
-class HttpEndpointInQueryParamMode(str: String) extends HttpEndpoint(str) {
-  def ?(elements: (String, String)*) = {
-    val res = elements map tupled(_ + "=" + _) mkString "&"
-    new HttpEndpointInQueryParamMode(str + "?" + res)
-  }
-}
+class HttpEndpointInQueryParamMode(str: String) extends HttpEndpoint(str)
 
 object Hattip {
   implicit def str2HttpEndpoint(str: String) = HttpEndpoint(str)
