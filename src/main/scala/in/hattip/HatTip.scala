@@ -5,9 +5,10 @@ import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.http.HttpFields
 import org.eclipse.jetty.io.ByteArrayBuffer
 import Function.tupled
-
 import xml.XML
 import com.codecommit.antixml
+import org.eclipse.jetty.client.security.Realm
+import org.eclipse.jetty.client.security.HashRealmResolver
 
 class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   override def toString = "Response[" + code + "]" + str
@@ -47,6 +48,17 @@ trait HttpEndpoint { outer =>
 
   def str: String
 
+  def secure(realm: String, principal: String, credentials: String) = {
+    val resolver = new HashRealmResolver();
+    resolver.addSecurityRealm(
+        new Realm() {
+          override def getId() = realm
+          override def getPrincipal() = principal
+          override def getCredentials() = credentials
+      })
+    httpClient.setRealmResolver(resolver)
+    this
+  }
   def get: HttpResponse = {
     val ex = new ContentExchange
     ex.setURL(str)
@@ -59,6 +71,7 @@ trait HttpEndpoint { outer =>
     val ex = new ContentExchange
     ex.setMethod("POST")
     ex.setURL(str)
+
     ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8");
     ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
     httpClient.send(ex)

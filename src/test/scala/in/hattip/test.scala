@@ -9,9 +9,16 @@ import org.specs2.runner.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
-  def before = TestServer.start()
-  def after = TestServer.stop()
+  def before = {
+    TestServer.start()
+    SecureServer.start()
+  }
+  def after = {
+    TestServer.stop()
+    SecureServer.stop()
+  }
   val host = "http://localhost:8088"
+  val host2 = "http://localhost:9088"
 
   /* doesn't compile, as expected.
   "The HttpEndpoint" should {
@@ -22,18 +29,18 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
   }
   */
 
-  "The hattip client library" should { 
-    "fetch a page successfully" in { 
+  "The hattip client library" should {
+    "fetch a page successfully" in {
       val resp = host get;
       resp.code must_== 200
       resp.str must contain("<html>Hello World!</html>")
     }
-    
+
     "detect a 404 or other http codes appropriately" in {
       val resp = host / "nonexistent.file" get;
       resp.code must_== 404
     }
-    
+
     "skip the normal handler block in case of non 200, yet reach the error handler" in {
       var enteredSuccessBlock = false;
       var capturedInErrorBlock = false;
@@ -46,25 +53,43 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       enteredSuccessBlock must_==(false)
       capturedInErrorBlock must_==(true)
     }
-    
-    "post data successfully" in { 
-      val resp = host / "post.do" post("""This is 
+
+    "post data successfully" in {
+      val resp = host / "post.do" post("""This is
             very very long
               a long string""");
       resp.code must_== 200
       resp.str must contain("very very long")
     }
-    
+
     "parse data as xml" in {
       val xml = (host / "index.xml" get) asXml;
       val dependencies = xml\\"dependencies"\"dependency"
       dependencies.length must_==(3)
     }
-    
+
     "parse data as anti-xml" in {
       val xml = (host / "index.xml" get) asAntiXml;
       val dependencies = xml\\"dependencies"\"dependency"
       dependencies.length must_==(3)
+    }
+
+    "be able to detect 401 against secure resources" in {
+      var authErrorDetected = false;
+      host2 / "secure" / "index.html" get { resp => ;} onErrorCode {
+        case(401) => authErrorDetected = true
+      }
+
+      authErrorDetected must_==(true)
+    }
+
+    "be able perform basic authentication" in {
+      var authenticated = false;
+      host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get { resp =>
+        authenticated = true
+      }
+
+      authenticated must_==(true)
     }
   }
 }

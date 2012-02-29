@@ -1,6 +1,6 @@
 // hat.tip
 apply plugin: 'idea'
-// apply plugin: 'eclipse'
+apply plugin: 'eclipse'
 apply plugin: 'scala'
 apply plugin: 'maven'
 
@@ -15,19 +15,24 @@ group = 'in.nene'
 artifactId = 'hattip'
 version = '0.0.1-SNAPSHOT'
 
+jetty_version = "8.1.0.v20120127"
+
 dependencies {
   scalaTools    'org.scala-lang:scala-compiler:2.9.1',
                 'org.scala-lang:scala-library:2.9.1'
 
   compile       'ch.qos.logback:logback-classic:1.0.0',
-                'org.eclipse.jetty.aggregate:jetty-websocket:8.1.1.v20120215',
-                'org.eclipse.jetty.aggregate:jetty-client:8.1.1.v20120215',
+                'org.eclipse.jetty.aggregate:jetty-websocket:' + jetty_version,
+                'org.eclipse.jetty.aggregate:jetty-client:' + jetty_version,
                 'com.codecommit:anti-xml_2.9.1:0.3',
                 'org.scala-lang:scala-library:2.9.1'
 
   testCompile   'junit:junit:4.5',
                 'org.specs2:specs2_2.9.1:1.6.1',
                 'org.specs2:specs2-scalaz-core_2.9.1:6.0.1',
-                'org.eclipse.jetty:jetty-server:8.1.0.RC5'
+                'org.eclipse.jetty.toolchain:jetty-test-helper:1.6.1',
+                'org.eclipse.jetty.aggregate:jetty-all-server:' + jetty_version,
+                'org.glassfish:javax.servlet:3.0'
+
 }
 
