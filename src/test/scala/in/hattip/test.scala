@@ -12,7 +12,16 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
   def before = TestServer.start()
   def after = TestServer.stop()
   val host = "http://localhost:8088"
-    
+
+  /* doesn't compile, as expected.
+  "The HttpEndpoint" should {
+    "should fail to construct" in {
+      val x = ("http://foo.com" / "ko") ? ("89" -> "34") / "ko"
+      true must_== true
+    }
+  }
+  */
+
   "The hattip client library" should { 
     "fetch a page successfully" in { 
       val resp = host get;

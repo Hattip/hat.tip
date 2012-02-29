@@ -12,6 +12,7 @@ import com.codecommit.antixml
 class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   override def toString = "Response[" + code + "]" + str
 
+  // FIX: Something seems wrong here.
   def apply(f: HttpResponse => Unit) = {
     if (code == 200) {
       f(this)
@@ -19,61 +20,69 @@ class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
     this
   }
 
-  def asXml = xml.XML.loadString(str)
+  def asXml = XML.loadString(str)
   def asAntiXml = antixml.XML.fromString(str)
   def orElse(f: HttpResponse => Unit) = f(this)
   def onErrorCode(f: PartialFunction[Int, Unit]) = f(code)
 }
 
-abstract class HttpEndpoint protected(str: String) {
-  val httpClient = new HttpClient()
+// Phantom types to ensure proper creation of HttpEndpoint.
+sealed trait HttpEndpointConstructionStage
+trait UriStage extends HttpEndpointConstructionStage
+trait QueryParamStage extends HttpEndpointConstructionStage
+
+trait HttpEndpoint { outer =>
+
+  type S <: HttpEndpointConstructionStage
+
+  // Initialization code
+  val httpClient = new HttpClient
   httpClient.start
   httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
 
-  if(!Set("http://", "https://").exists(str.startsWith)) {
-    throw new RuntimeException("Invalid Http Endpoint String " + str)
-  }
-    
+  require(
+    Set("http://", "https://").exists(str.startsWith),
+    "Invalid Http Endpoint String " + str
+  )
+
+  def str: String
+
   def get: HttpResponse = {
-    val exchange = new ContentExchange()
-    exchange.setURL(str)
-    httpClient.send(exchange)
-    exchange.waitForDone
-    new HttpResponse(
-      exchange.getResponseStatus(),
-      exchange.getResponseFields(),
-      exchange.getResponseContent())
+    val ex = new ContentExchange
+    ex.setURL(str)
+    httpClient.send(ex)
+    ex.waitForDone
+    new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
   }
 
   def post(data: String): HttpResponse = {
-    val exchange = new ContentExchange()
-    exchange.setMethod("POST")
-    exchange.setURL(str)
-    exchange.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8");
-    exchange.setRequestContent(new ByteArrayBuffer(data.getBytes()))
-    httpClient.send(exchange)
-    exchange.waitForDone
-    new HttpResponse(
-      exchange.getResponseStatus(),
-      exchange.getResponseFields(),
-      exchange.getResponseContent())
+    val ex = new ContentExchange
+    ex.setMethod("POST")
+    ex.setURL(str)
+    ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8");
+    ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
+    httpClient.send(ex)
+    ex.waitForDone
+    new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
   }
+
+  def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(str + "/" + additional)
 
   def ?(elements: (String, String)*) = {
     val res = elements map tupled(_ + "=" + _) mkString "&"
-    new HttpEndpointInQueryParamMode(str + "?" + res)
+    new HttpEndpoint {
+      type S = QueryParamStage
+      def str = outer.str + "?" + res
+    }
   }
 }
 
 object HttpEndpoint {
-  def apply(str: String) = new HttpEndpointInUriMode(str)
+  def apply(s: String) = new HttpEndpoint {
+    type S = UriStage
+    def str = s
+  }
 }
-
-class HttpEndpointInUriMode(str: String) extends HttpEndpoint(str) {
-  def /(additional: String) = new HttpEndpointInUriMode(str + "/" + additional)
-}
-
-class HttpEndpointInQueryParamMode(str: String) extends HttpEndpoint(str)
 
 object Hattip {
   implicit def str2HttpEndpoint(str: String) = HttpEndpoint(str)
