@@ -9,6 +9,13 @@ import xml.XML
 import com.codecommit.antixml
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.security.HashRealmResolver
+import org.eclipse.jetty.websocket.WebSocketClientFactory
+import org.eclipse.jetty.websocket.WebSocketClient
+import java.net.URI
+import org.eclipse.jetty.websocket.WebSocket
+import java.util.concurrent.TimeUnit
+import org.eclipse.jetty.websocket.WebSocketConnection
+import org.eclipse.jetty.websocket.WebSocket.Connection
 
 class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   override def toString = "Response[" + code + "]" + str
@@ -27,6 +34,51 @@ class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   def onErrorCode(f: PartialFunction[Int, Unit]) = f(code)
 }
 
+object WsConnection {
+  val factory = new WebSocketClientFactory()
+  factory setBufferSize 4096
+  factory start
+  def apply() : WebSocketClient = {
+    val client = factory.newWebSocketClient()
+    client setMaxIdleTime 30000
+    client setMaxTextMessageSize 1024
+    client setProtocol "hattip"
+    client
+  } 
+}
+
+class WrappedWebSocket extends WebSocket with WebSocket.OnTextMessage with WebSocket.OnBinaryMessage {
+  var connection: Option[Connection] = None
+  var closed = false
+  
+  var textHandler: Option[String=>Unit] = None
+
+  def onMessage(f: String => Unit) {
+    textHandler = Some(f)
+  }
+
+  def onOpen(connection: Connection) {
+    this.connection = Some(connection)
+  }
+  def onClose(code: Int, message: String) {
+    connection = None
+  }
+  def onMessage(message: String) {
+    textHandler foreach (_(message))
+  } 
+  def onMessage(data: Array[Byte], offset: Int, length: Int) {
+    println("Client receives data " + length + " bytes long")
+  }
+}
+
+class WrappedConnection(connection: Connection, wSocket: WrappedWebSocket) {
+  def onMessage(f: String => Unit) {
+    wSocket.onMessage(f)
+  }
+  def !(message: String) = {
+    connection.sendMessage(message)
+  }
+}
 // Phantom types to ensure proper creation of HttpEndpoint.
 sealed trait HttpEndpointConstructionStage
 trait UriStage extends HttpEndpointConstructionStage
@@ -42,7 +94,7 @@ trait HttpEndpoint { outer =>
   httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
 
   require(
-    Set("http://", "https://").exists(str.startsWith),
+    Set("http://", "https://", "ws://").exists(str.startsWith),
     "Invalid Http Endpoint String " + str
   )
 
@@ -87,6 +139,14 @@ trait HttpEndpoint { outer =>
       type S = QueryParamStage
       def str = outer.str + "?" + res
     }
+  }
+  
+  def open : WrappedConnection = {
+    val client = WsConnection()
+    val wSocket = new WrappedWebSocket()
+    val future = client.open(new URI(str),wSocket);
+    val connection = future.get(10,TimeUnit.SECONDS);  
+    new WrappedConnection(connection,wSocket)
   }
 }
 

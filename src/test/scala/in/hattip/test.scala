@@ -1,24 +1,29 @@
 package in.hattip
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
+import org.specs2.runner.JUnitRunner
 import org.specs2.specification.AfterExample
 import org.specs2.specification.BeforeExample
+
 import com.codecommit.antixml.Selector.stringToSelector
+
 import in.hattip.Hattip.str2HttpEndpoint
-import org.specs2.runner.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
   def before = {
     TestServer.start()
     SecureServer.start()
+    WebsocketServer.start()
   }
   def after = {
     TestServer.stop()
     SecureServer.stop()
+    WebsocketServer.stop()
   }
   val host = "http://localhost:8088"
   val host2 = "http://localhost:9088"
+  val wsHost = "ws://localhost:9999"
 
   /* doesn't compile, as expected.
   "The HttpEndpoint" should {
@@ -90,6 +95,23 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       }
 
       authenticated must_==(true)
+    }
+    
+    "be able to send a websocket text message" in {
+      val conn = wsHost open;
+      conn ! "message .. message .. message"
+      true must_==(true)
+    }
+    "be able to read a websocket text message" in {
+      val conn = wsHost open;
+      var receivedPong = false
+      conn onMessage { msg =>
+        receivedPong = msg == "pong"
+      }
+      conn ! "ping"
+      // sleep to wait to get the response back
+      Thread.sleep(2000)
+      receivedPong must_==(true)
     }
   }
 }

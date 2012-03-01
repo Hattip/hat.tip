@@ -1,21 +1,24 @@
 package in.hattip
 import scala.collection.mutable.ListBuffer
+
+import org.eclipse.jetty.security.authentication.BasicAuthenticator
 import org.eclipse.jetty.security.ConstraintMapping
 import org.eclipse.jetty.security.ConstraintSecurityHandler
+import org.eclipse.jetty.security.HashLoginService
 import org.eclipse.jetty.server.handler.AbstractHandler
+import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
-import org.eclipse.jetty.server.Connector
+import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.toolchain.test.MavenTestingUtils
 import org.eclipse.jetty.util.security.Constraint
+import org.eclipse.jetty.websocket.WebSocket.Connection
+import org.eclipse.jetty.websocket.WebSocket
+import org.eclipse.jetty.websocket.WebSocketHandler
+
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import org.eclipse.jetty.webapp.WebAppContext
-import org.eclipse.jetty.server.handler.HandlerCollection
-import org.eclipse.jetty.server.Handler
-import org.eclipse.jetty.security.authentication.BasicAuthenticator
-import org.eclipse.jetty.security.HashLoginService
-import org.eclipse.jetty.toolchain.test.MavenTestingUtils
 
 case class Req(val method: String, val uri: String)
 
@@ -110,4 +113,43 @@ object SecureServer {
 
     sh
   }
+}
+
+class TestWebSocket extends WebSocket.OnTextMessage with WebSocket.OnBinaryMessage {
+  var connection: Option[Connection] = None
+  
+  def onOpen(connection: Connection) {
+    this.connection = Some(connection)
+  }
+  def onClose(code: Int, message: String) {
+    
+  }
+  def onMessage(message: String) {
+    println("Received text message: " + message)
+    if (message == "ping") {
+      this.connection foreach { _.sendMessage("pong")}
+    }
+  } 
+  def onMessage(data: Array[Byte], offset: Int, length: Int) {
+    println("Received data " + length + " bytes long")
+  }
+}
+object WebsocketServer extends Server {
+  val connector = new SelectChannelConnector()
+  connector.setPort(9999)
+  addConnector(connector)
+  
+  val handler = new WebSocketHandler() {
+    def doWebSocketConnect(request: HttpServletRequest, protocol: String): WebSocket = {
+      new TestWebSocket();
+    }
+  }
+  setHandler(handler)
+  
+  val rHandler = new ResourceHandler()
+  rHandler.setDirectoriesListed(false)
+  rHandler.setResourceBase(System.getProperty("user.dir"))
+  handler.setHandler(rHandler)
+  
+  
 }
