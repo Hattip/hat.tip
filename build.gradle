@@ -11,7 +11,7 @@ repositories {
     maven { url = 'https://oss.sonatype.org/content/groups/public' }
 }
 
-group = 'in.nene'
+group = 'in.hattip'
 artifactId = 'hattip'
 version = '0.0.1-SNAPSHOT'
 
