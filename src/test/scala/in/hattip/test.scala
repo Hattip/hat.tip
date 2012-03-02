@@ -11,6 +11,7 @@ import in.hattip.Hattip.str2HttpEndpoint
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
+  sequential
   def before = {
     TestServer.start()
     SecureServer.start()
@@ -37,6 +38,17 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
   "The hattip client library" should {
     "fetch a page successfully" in {
       val resp = host get;
+      resp.code must_== 200
+      resp.str must contain("<html>Hello World!</html>")
+    }
+
+    "be able to pass headers successfully" in {
+      val resp = host withHeaders(
+          "foo" -> "bar", 
+          "baz"->"jaz",
+          "Content-type" -> "application/xml",
+          "Accept"->"application/xml") get;
+
       resp.code must_== 200
       resp.str must contain("<html>Hello World!</html>")
     }

@@ -19,6 +19,7 @@ import org.eclipse.jetty.websocket.WebSocketHandler
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import collection.JavaConversions._
 
 case class Req(val method: String, val uri: String)
 
@@ -27,8 +28,9 @@ class TestHandler extends AbstractHandler {
       // set by default. Change later if required
       response.setContentType("text/html;charset=utf-8")
       response.setStatus(HttpServletResponse.SC_OK)
-
-
+      request.getHeaderNames() foreach { hdrname =>
+        println("===> Header:" + hdrname.toString() + "," + request.getHeader(hdrname))
+      }
       val req = Req(baseReq.getMethod(), baseReq.getRequestURI())
       req match {
         case Req("GET","/") =>
@@ -76,7 +78,7 @@ object TestServer {
     def stop() {
       server.stop()
     }
-
+    
 }
 
 object SecureServer {

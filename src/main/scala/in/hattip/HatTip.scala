@@ -16,6 +16,7 @@ import org.eclipse.jetty.websocket.WebSocket
 import java.util.concurrent.TimeUnit
 import org.eclipse.jetty.websocket.WebSocketConnection
 import org.eclipse.jetty.websocket.WebSocket.Connection
+import scala.collection.mutable.ListBuffer
 
 class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   override def toString = "Response[" + code + "]" + str
@@ -96,6 +97,7 @@ trait HttpEndpoint { outer =>
   )
 
   def str: String
+  var headers = ListBuffer[(String,String)]()
 
   def secure(realm: String, principal: String, credentials: String) = {
     val resolver = new HashRealmResolver();
@@ -111,6 +113,10 @@ trait HttpEndpoint { outer =>
   def get: HttpResponse = {
     val ex = new ContentExchange
     ex.setURL(str)
+    headers map { 
+      hdr => 
+        ex.addRequestHeader(hdr._1, hdr._2)
+    }
     httpClient.send(ex)
     ex.waitForDone
     new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
@@ -123,6 +129,7 @@ trait HttpEndpoint { outer =>
 
     ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8");
     ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
+    headers map { hdr => ex.addRequestHeader(hdr._1, hdr._2)}
     httpClient.send(ex)
     ex.waitForDone
     new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
@@ -138,6 +145,10 @@ trait HttpEndpoint { outer =>
     }
   }
   
+  def withHeaders(headers: (String,String)*) = {
+    headers map { this.headers += }
+    this
+  }
   def open(protocol: String) : WrappedConnection = {
     val client = WsConnection(protocol)
     val wSocket = new WrappedWebSocket()
