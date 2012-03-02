@@ -36,13 +36,10 @@ class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
 
 object WsConnection {
   val factory = new WebSocketClientFactory()
-  factory setBufferSize 4096
   factory start
-  def apply() : WebSocketClient = {
+  def apply(protocol: String) : WebSocketClient = {
     val client = factory.newWebSocketClient()
-    client setMaxIdleTime 30000
-    client setMaxTextMessageSize 1024
-    client setProtocol "hattip"
+    client setProtocol protocol
     client
   } 
 }
@@ -141,8 +138,8 @@ trait HttpEndpoint { outer =>
     }
   }
   
-  def open : WrappedConnection = {
-    val client = WsConnection()
+  def open(protocol: String) : WrappedConnection = {
+    val client = WsConnection(protocol)
     val wSocket = new WrappedWebSocket()
     val future = client.open(new URI(str),wSocket);
     val connection = future.get(10,TimeUnit.SECONDS);  

@@ -98,12 +98,12 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     }
     
     "be able to send a websocket text message" in {
-      val conn = wsHost open;
+      val conn = wsHost open "in.hattip.hattip";
       conn ! "message .. message .. message"
       true must_==(true)
     }
     "be able to read a websocket text message" in {
-      val conn = wsHost open;
+      val conn = wsHost open "in.hattip.hattip";
       var receivedPong = false
       conn onMessage { msg =>
         receivedPong = msg == "pong"
