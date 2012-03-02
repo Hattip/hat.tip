@@ -11,7 +11,7 @@ repositories {
     maven { url = 'https://oss.sonatype.org/content/groups/public' }
 }
 
-group = 'in.hattip'
+groupId = 'in.hattip'
 artifactId = 'hattip'
 version = '0.0.1-SNAPSHOT'
 
@@ -34,5 +34,13 @@ dependencies {
                 'org.eclipse.jetty.aggregate:jetty-all-server:' + jetty_version,
                 'org.glassfish:javax.servlet:3.0'
 
+}
+
+project.tasks.install.repositories.mavenInstaller.pom.whenConfigured {pom ->
+    pom.project {
+        groupId = project.groupId
+        artifactId = project.artifactId
+        version = project.version
+    }
 }
 
