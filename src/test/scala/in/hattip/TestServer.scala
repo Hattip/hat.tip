@@ -44,7 +44,6 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
       } toList
       var bytes = new Array[Byte](4096)
       val count = request.getInputStream().read(bytes)
-      println("============================> ", count)
       val req = if (count <= 0) 
               Req(baseReq.getMethod(), baseReq.getRequestURI(),headers sorted)
             else {

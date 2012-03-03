@@ -73,7 +73,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       var enteredSuccessBlock = false;
       var capturedInErrorBlock = false;
-      val resp = host / "nonexistent.file" get {
+      val resp = (host / "nonexistent.file" get) onSuccess {
         rsp => enteredSuccessBlock = true;
       } onErrorCode {
         case(404) => capturedInErrorBlock = true;
@@ -94,7 +94,6 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       resp.code must_== 200
       resp.str must contain("very very long")
       val data = listener.get.get.data
-      println("==============>" + data.length)
       listener.get must_== Some(Req("POST","/post.do",List[(String,String)](
           ("Host","localhost:8088"),
           ("Content-Length", longString.length().toString()),
@@ -123,7 +122,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able to detect 401 against secure resources" in {
       listener.clear()
       var authErrorDetected = false;
-      host2 / "secure" / "index.html" get { resp => ;} onErrorCode {
+      (host2 / "secure" / "index.html" get) onSuccess { resp => ;} onErrorCode {
         case(401) => authErrorDetected = true
       }
 
@@ -134,7 +133,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able perform basic authentication" in {
       listener.clear()
       var authenticated = false;
-      host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get { resp =>
+      (host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get) onSuccess { resp =>
         authenticated = true
       }
 

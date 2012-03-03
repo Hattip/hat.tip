@@ -21,8 +21,8 @@ import scala.collection.mutable.ListBuffer
 class HttpResponse(val code: Int, fields: HttpFields, val str: String) {
   override def toString = "Response[" + code + "]" + str
 
-  // FIX: Something seems wrong here.
-  def apply(f: HttpResponse => Unit) = {
+  // TODO: Better name required
+  def onSuccess(f: HttpResponse => Unit) = {
     if (code == 200) {
       f(this)
     }
