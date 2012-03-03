@@ -1,5 +1,6 @@
 package in.hattip
-import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
+import scala.collection.SortedMap
 
 import org.eclipse.jetty.security.authentication.BasicAuthenticator
 import org.eclipse.jetty.security.ConstraintMapping
@@ -19,7 +20,6 @@ import org.eclipse.jetty.websocket.WebSocketHandler
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import collection.JavaConversions._
 
 class RequestListener {
   var lastRequest: Option[Req] = None
@@ -32,32 +32,49 @@ class RequestListener {
   def get = lastRequest
 }
 
-case class Req(val method: String, val uri: String, headers: List[(String,String)], data: String = "")
+case class Req(val method: String, val uri: String, map: SortedMap[String,Array[String]], headers: List[(String,String)], data: String = "") {
+  override def equals(other: Any): Boolean = {
+    if(other.isInstanceOf[Req]) {
+      val that = other.asInstanceOf[Req]
+      if(this.method == that.method && this.uri == that.uri && this.headers == that.headers && this.data == that.data) {
+        (this.map zip that.map) forall { pair =>
+           pair._1._1 == pair._2._1 && (pair._1._2.zip(pair._2._2).forall {ipair => ipair._1 == ipair._2})
+        }
+      } else {
+        return false
+      }
+    }
+    else return false
+  }
+}
 
 class TestHandler(l: RequestListener) extends AbstractHandler {
     def handle(target : String, baseReq : Request, request : HttpServletRequest, response : HttpServletResponse) {
       // set by default. Change later if required
       response.setContentType("text/html;charset=utf-8")
       response.setStatus(HttpServletResponse.SC_OK)
-      val headers = request.getHeaderNames() map { hdrname =>
+      val headers = request.getHeaderNames().asScala map { hdrname =>
         (hdrname, request.getHeader(hdrname))
       } toList
       var bytes = new Array[Byte](4096)
       val count = request.getInputStream().read(bytes)
+      val params = SortedMap(request.getParameterMap.asScala.toArray:_*)
+      
+      println("========================> " + params.toString())
       val req = if (count <= 0) 
-              Req(baseReq.getMethod(), baseReq.getRequestURI(),headers sorted)
+              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted)
             else {
-              Req(baseReq.getMethod(), baseReq.getRequestURI(),headers sorted, new String(bytes.take(count)))
+              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted, new String(bytes.take(count)))
             }
               
       l.send(req)
       
       req match {
-        case Req("GET","/",_,_) =>
+        case Req("GET","/",_,_,_) =>
           response.getWriter().println("<html>Hello World!</html>")
-        case Req("GET","/index.html",_,_) =>
+        case Req("GET","/index.html",_,_,_) =>
           response.getWriter().println("<html>Hello World!</html>")
-        case Req("GET","/index.xml",_,_) =>
+        case Req("GET","/index.xml",_,_,_) =>
           response.setContentType("text/xml;charset=utf-8")
           response.getWriter().println("""
               <project name="hat.tip">
@@ -68,11 +85,11 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
                   </dependencies>
               </project>
               """)
-        case Req("GET","/nonexistent.file",_,_) =>
+        case Req("GET","/nonexistent.file",_,_,_) =>
           response.setStatus(HttpServletResponse.SC_NOT_FOUND)
-        case Req("POST","/post.do",_,_) =>
+        case Req("POST","/post.do",_,_,_) =>
           response.getWriter().println(req.data)
-        case Req("GET","/secure/index.html",_,_) =>
+        case Req("GET","/secure/index.html",_,_,_) =>
           response.getWriter().println("<html>Hello Secure World!</html>")
       }
       baseReq.setHandled(true)

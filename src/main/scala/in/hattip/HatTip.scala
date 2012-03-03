@@ -2,11 +2,9 @@ package in.hattip
 
 import java.net.URI
 import java.util.concurrent.TimeUnit
-
 import scala.Function.tupled
 import scala.collection.mutable.ListBuffer
 import scala.xml.XML
-
 import org.eclipse.jetty.client.security.HashRealmResolver
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.ContentExchange
@@ -18,8 +16,8 @@ import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
 import scala.collection.mutable
-
 import com.codecommit.antixml
+import java.net.URLEncoder
 
 trait HttpCode{
   val code: Int
@@ -229,7 +227,7 @@ trait HttpEndpoint { outer =>
   def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(str + "/" + additional)
 
   def ?(elements: (String, String)*) = {
-    val res = elements map tupled(_ + "=" + _) mkString "&"
+    val res = elements map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
     new HttpEndpoint {
       type S = QueryParamStage
       def str = outer.str + "?" + res

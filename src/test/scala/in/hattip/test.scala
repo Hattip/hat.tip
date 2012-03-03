@@ -4,15 +4,15 @@ import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 import org.specs2.specification.AfterExample
 import org.specs2.specification.BeforeExample
-
 import com.codecommit.antixml.Selector.stringToSelector
-
 import in.hattip.Hattip.str2HttpEndpoint
+import scala.collection.immutable.SortedMap
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
   sequential
   val listener = new RequestListener()
+  val emptyQueryStringMap = SortedMap[String,Array[String]]()
   def before = {
     TestServer.start(listener)
     SecureServer.start(listener)
@@ -42,7 +42,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       val resp = host.get
       resp.code must_== _200
       resp.str must contain("<html>Hello World!</html>")
-      listener.get must_== Some(Req("GET","/",
+      listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
             List[(String,String)](("Host","localhost:8088"))))
     }
 
@@ -54,11 +54,31 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
 
       resp.code must_== _200
       resp.str must contain("<html>Hello World!</html>")
-      listener.get must_== Some(Req("GET","/",
+      listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
             List[(String,String)](
                 ("Host","localhost:8088"), 
                 ("foo","bar"),
                 ("baz","jaz")) sorted))
+    }
+
+    "build query string successfully" in {
+      listener.clear()
+      val resp = ((host / "index.html") ? ("foo" -> "bar", "baz" -> "jaz")).get
+      resp.code must_== _200
+      resp.str must contain("<html>Hello World!</html>")
+      listener.get must_== Some(Req("GET","/index.html",
+          SortedMap("foo" -> Array[String]("bar"), "baz" -> Array[String]("jaz")),
+            List[(String,String)](("Host","localhost:8088"))))
+    }
+
+    "urlencode a query string successfully" in {
+      listener.clear()
+      val resp = ((host / "index.html") ? ("f+o o" -> "b a r", "baz" -> "jaz")).get
+      resp.code must_== _200
+      resp.str must contain("<html>Hello World!</html>")
+      listener.get must_== Some(Req("GET","/index.html",
+          SortedMap("f+o o" -> Array[String]("b a r"), "baz" -> Array[String]("jaz")),
+            List[(String,String)](("Host","localhost:8088"))))
     }
 
     "detect a 404 or other http codes appropriately" in {
@@ -74,7 +94,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       }
       
       matchedNotFound must_==(true)
-      listener.get must_== Some(Req("GET","/nonexistent.file",
+      listener.get must_== Some(Req("GET","/nonexistent.file",emptyQueryStringMap,
             List[(String,String)](("Host","localhost:8088"))))
     }
 
@@ -89,7 +109,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       }
       enteredSuccessBlock must_==(false)
       capturedInErrorBlock must_==(true)
-      listener.get must_== Some(Req("GET","/nonexistent.file",
+      listener.get must_== Some(Req("GET","/nonexistent.file",emptyQueryStringMap,
                                     List[(String,String)](("Host","localhost:8088"))))
    }
 
@@ -102,7 +122,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       resp.code must_== _200
       resp.str must contain("very very long")
       val data = listener.get.get.data
-      listener.get must_== Some(Req("POST","/post.do",List[(String,String)](
+      listener.get must_== Some(Req("POST","/post.do",emptyQueryStringMap,List[(String,String)](
           ("Host","localhost:8088"),
           ("Content-Length", longString.length().toString()),
           ("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
@@ -114,7 +134,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       val xml = (host / "index.xml" get) asXml;
       val dependencies = xml\\"dependencies"\"dependency"
       dependencies.length must_==(3)
-      listener.get must_== Some(Req("GET","/index.xml",
+      listener.get must_== Some(Req("GET","/index.xml",emptyQueryStringMap,
                                     List[(String,String)](("Host","localhost:8088"))))
     }
 
@@ -123,7 +143,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       val xml = (host / "index.xml" get) asAntiXml;
       val dependencies = xml\\"dependencies"\"dependency"
       dependencies.length must_==(3)
-      listener.get must_== Some(Req("GET","/index.xml",
+      listener.get must_== Some(Req("GET","/index.xml",emptyQueryStringMap,
                                     List[(String,String)](("Host","localhost:8088"))))
     }
 
@@ -146,7 +166,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       }
 
       authenticated must_==(true)
-      listener.get must_== Some(Req("GET","/secure/index.html",
+      listener.get must_== Some(Req("GET","/secure/index.html",emptyQueryStringMap,
                                     List[(String,String)](
                                         ("Host","localhost:9088"),
                                         ("Authorization","Basic amV0dHk6amV0dHk=")) sorted))
