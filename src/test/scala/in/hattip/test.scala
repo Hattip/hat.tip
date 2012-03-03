@@ -39,8 +39,8 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
   "The hattip client library" should {
     "fetch a page successfully" in {
       listener.clear()
-      val resp = host get;
-      resp.code must_== 200
+      val resp = host.get
+      resp.code must_== _200
       resp.str must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/",
             List[(String,String)](("Host","localhost:8088"))))
@@ -50,9 +50,9 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val resp = host withHeaders(
           "foo" -> "bar", 
-          "baz"->"jaz") get;
+          "baz"->"jaz") get
 
-      resp.code must_== 200
+      resp.code must_== _200
       resp.str must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/",
             List[(String,String)](
@@ -62,9 +62,18 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     }
 
     "detect a 404 or other http codes appropriately" in {
+      var matchedNotFound = false
       listener.clear()
-      val resp = host / "nonexistent.file" get;
-      resp.code must_== 404
+      val resp = (host / "nonexistent.file").get
+      resp.code must_== _404
+      
+      resp process {
+        case Success() => ;
+        case NotFound() => matchedNotFound = true
+        case _ => ;
+      }
+      
+      matchedNotFound must_==(true)
       listener.get must_== Some(Req("GET","/nonexistent.file",
             List[(String,String)](("Host","localhost:8088"))))
     }
@@ -73,10 +82,9 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       var enteredSuccessBlock = false;
       var capturedInErrorBlock = false;
-      val resp = (host / "nonexistent.file" get) onSuccess {
-        rsp => enteredSuccessBlock = true;
-      } onErrorCode {
-        case(404) => capturedInErrorBlock = true;
+      val resp = (host / "nonexistent.file" get) process {
+        case(Success()) => enteredSuccessBlock = true;
+        case(NotFound()) => capturedInErrorBlock = true;
         case _ => ;
       }
       enteredSuccessBlock must_==(false)
@@ -91,7 +99,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
             very very long
               a long string"""
       val resp = host / "post.do" post(longString);
-      resp.code must_== 200
+      resp.code must_== _200
       resp.str must contain("very very long")
       val data = listener.get.get.data
       listener.get must_== Some(Req("POST","/post.do",List[(String,String)](
@@ -122,8 +130,8 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able to detect 401 against secure resources" in {
       listener.clear()
       var authErrorDetected = false;
-      (host2 / "secure" / "index.html" get) onSuccess { resp => ;} onErrorCode {
-        case(401) => authErrorDetected = true
+      (host2 / "secure" / "index.html" get) process {
+        case(_401) => authErrorDetected = true
       }
 
       authErrorDetected must_==(true)
@@ -133,8 +141,8 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able perform basic authentication" in {
       listener.clear()
       var authenticated = false;
-      (host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get) onSuccess { resp =>
-        authenticated = true
+      (host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get) process { 
+        case(Success()) => authenticated = true
       }
 
       authenticated must_==(true)
