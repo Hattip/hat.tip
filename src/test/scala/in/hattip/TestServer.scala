@@ -1,7 +1,6 @@
 package in.hattip
 import scala.collection.JavaConverters._
 import scala.collection.SortedMap
-
 import org.eclipse.jetty.security.authentication.BasicAuthenticator
 import org.eclipse.jetty.security.ConstraintMapping
 import org.eclipse.jetty.security.ConstraintSecurityHandler
@@ -9,6 +8,7 @@ import org.eclipse.jetty.security.HashLoginService
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
+import org.eclipse.jetty.server.ssl.SslSocketConnector
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
@@ -17,9 +17,9 @@ import org.eclipse.jetty.util.security.Constraint
 import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketHandler
-
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import org.eclipse.jetty.server.Connector
 
 class RequestListener {
   var lastRequest: Option[Req] = None
@@ -32,7 +32,7 @@ class RequestListener {
   def get = lastRequest
 }
 
-case class Req(val method: String, val uri: String, map: SortedMap[String,Array[String]], headers: List[(String,String)], data: String = "") {
+case class Req(val method: String, val uri: String, map: SortedMap[String,Array[String]], headers: List[(String,String)], data: String = "", secure: Boolean = false) {
   override def equals(other: Any): Boolean = {
     if(other.isInstanceOf[Req]) {
       val that = other.asInstanceOf[Req]
@@ -60,21 +60,20 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
       val count = request.getInputStream().read(bytes)
       val params = SortedMap(request.getParameterMap.asScala.toArray:_*)
       
-      println("========================> " + params.toString())
       val req = if (count <= 0) 
-              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted)
+              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted, secure = request.isSecure())
             else {
-              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted, new String(bytes.take(count)))
+              Req(baseReq.getMethod(), baseReq.getRequestURI(), params, headers sorted, new String(bytes.take(count)),request.isSecure())
             }
               
       l.send(req)
       
       req match {
-        case Req("GET","/",_,_,_) =>
+        case Req("GET","/",_,_,_,_) =>
           response.getWriter().println("<html>Hello World!</html>")
-        case Req("GET","/index.html",_,_,_) =>
+        case Req("GET","/index.html",_,_,_,_) =>
           response.getWriter().println("<html>Hello World!</html>")
-        case Req("GET","/index.xml",_,_,_) =>
+        case Req("GET","/index.xml",_,_,_,_) =>
           response.setContentType("text/xml;charset=utf-8")
           response.getWriter().println("""
               <project name="hat.tip">
@@ -85,11 +84,11 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
                   </dependencies>
               </project>
               """)
-        case Req("GET","/nonexistent.file",_,_,_) =>
+        case Req("GET","/nonexistent.file",_,_,_,_) =>
           response.setStatus(HttpServletResponse.SC_NOT_FOUND)
-        case Req("POST","/post.do",_,_,_) =>
+        case Req("POST","/post.do",_,_,_,_) =>
           response.getWriter().println(req.data)
-        case Req("GET","/secure/index.html",_,_,_) =>
+        case Req("GET","/secure/index.html",_,_,_,_) =>
           response.getWriter().println("<html>Hello Secure World!</html>")
       }
       baseReq.setHandled(true)
@@ -107,6 +106,27 @@ object TestServer {
       server.stop()
     }
     
+}
+
+object SslServer {
+	val server = new Server()
+	val connector = new SslSocketConnector()
+	connector.setPort(8443)
+	connector.setKeystore("src/test/resources/keystore")
+	connector.setKeyPassword("keystore")
+	connector.setPassword("keystore")
+	connector.setTruststore("src/test/resources/keystore")
+	connector.setTrustPassword("keystore")
+	server.addConnector(connector)
+	
+    def start(l: RequestListener) {
+      server.setHandler(new TestHandler(l))
+      server.start()
+    }
+    def stop() {
+      connector.stop()
+      server.stop()
+    }
 }
 
 object SecureServer {

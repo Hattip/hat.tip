@@ -1,12 +1,15 @@
 package in.hattip
+import scala.collection.immutable.SortedMap
+
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 import org.specs2.specification.AfterExample
 import org.specs2.specification.BeforeExample
+
 import com.codecommit.antixml.Selector.stringToSelector
+
 import in.hattip.Hattip.str2HttpEndpoint
-import scala.collection.immutable.SortedMap
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
@@ -17,16 +20,19 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     TestServer.start(listener)
     SecureServer.start(listener)
     WebsocketServer.start()
+    SslServer.start(listener)
   }
   def after = {
     TestServer.stop()
     SecureServer.stop()
     WebsocketServer.stop()
+    SslServer.stop()
   }
   val host = "http://localhost:8088"
   val host2 = "http://localhost:9088"
   val wsHost = "ws://localhost:9999"
-
+  val sslHost = "https://localhost:8443"
+    
   /* doesn't compile, as expected.
   "The HttpEndpoint" should {
     "should fail to construct" in {
@@ -156,6 +162,15 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
 
       authErrorDetected must_==(true)
       listener.get must_== None
+    }
+
+    "fetch a page successfully over https" in {
+      listener.clear()
+      val resp = sslHost.get
+      resp.code must_== _200
+      resp.str must contain("<html>Hello World!</html>")
+      listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
+            List[(String,String)](("Host","localhost:8443")),secure=true))
     }
 
     "be able perform basic authentication" in {
