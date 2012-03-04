@@ -9,7 +9,7 @@ import org.specs2.specification.BeforeExample
 
 import com.codecommit.antixml.Selector.stringToSelector
 
-import in.hattip.Hattip.str2HttpEndpoint
+import in.hattip.Hattip._
 
 @RunWith(classOf[JUnitRunner])
 class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExample {
@@ -63,9 +63,9 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
 
     "be able to pass headers successfully" in {
       listener.clear()
-      val response = host withHeaders(
+      val response = host.withHeaders(
           "foo" -> "bar", 
-          "baz"->"jaz") get
+          "baz"->"jaz").get
 
       response.code must_== 200
       response.contents must contain("<html>Hello World!</html>")
@@ -206,7 +206,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val conn = wsHost open "in.hattip.hattip";
       var receivedPong = false
-      conn onMessage { msg =>
+      conn setMessageHandler { msg =>
         receivedPong = msg == "pong"
       }
       conn ! "ping"
