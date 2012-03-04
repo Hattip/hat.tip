@@ -176,7 +176,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able perform basic authentication" in {
       listener.clear()
       var authenticated = false;
-      (host2 / "secure" / "index.html" secure("realm", "jetty", "jetty") get) process { 
+      (host2 / "secure" / "index.html" as("realm", "jetty", "jetty") get) process { 
         case(Success()) => authenticated = true
       }
 

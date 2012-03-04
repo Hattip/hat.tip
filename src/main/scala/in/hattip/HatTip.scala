@@ -1,10 +1,14 @@
 package in.hattip
 
 import java.net.URI
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+
 import scala.Function.tupled
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 import scala.xml.XML
+
 import org.eclipse.jetty.client.security.HashRealmResolver
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.ContentExchange
@@ -15,9 +19,8 @@ import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
-import scala.collection.mutable
+
 import com.codecommit.antixml
-import java.net.URLEncoder
 
 //trait HttpCode{
 //  val code: Int
@@ -88,6 +91,12 @@ import java.net.URLEncoder
 //  registerAll()
 //}
 
+object AccessControlFailure {
+  val codes = Set(401,402,403,405,406)
+  def unapply(code: Int) : Boolean = {
+    codes contains code
+  }
+}
 
 object Success {
   def unapply(code: Int) : Boolean = {
@@ -197,7 +206,7 @@ trait HttpEndpoint { outer =>
   def str: String
   var headers = ListBuffer[(String,String)]()
 
-  def secure(realm: String, principal: String, credentials: String) = {
+  def as(realm: String, principal: String, credentials: String) = {
     val resolver = new HashRealmResolver();
     resolver.addSecurityRealm(
         new Realm() {
