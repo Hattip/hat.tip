@@ -3,22 +3,25 @@ package in.hattip
 import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+
 import scala.Function.tupled
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable
 import scala.xml.XML
+
 import org.eclipse.jetty.client.security.HashRealmResolver
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.ContentExchange
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.http.HttpFields
+import org.eclipse.jetty.io.Buffer
 import org.eclipse.jetty.io.ByteArrayBuffer
 import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
+
 import com.codecommit.antixml
-import org.eclipse.jetty.io.Buffer
 
 //trait HttpCode{
 //  val code: Int
@@ -136,7 +139,7 @@ object NotFound {
   }
 }
 
-class HttpResponse(val code: Int, fields: HttpFields, val contents: String) {
+class HttpResponse(val code: Int, val headers: Map[String,String], val contents: String) {
   override def toString = "Response[" + code + "]" + contents
   def asXml = XML.loadString(contents)
   def asAntiXml = antixml.XML.fromString(contents)
@@ -194,7 +197,7 @@ sealed trait HttpEndpointConstructionStage
 trait UriStage extends HttpEndpointConstructionStage
 trait QueryParamStage extends HttpEndpointConstructionStage
 
-class MyContentExchange extends ContentExchange {
+class HattipContentExchange extends ContentExchange {
   val headerBuffer = ListBuffer[(String,String)]()
   lazy val headers = Map[String,String](headerBuffer toList:_*)
   override def onResponseHeader(name: Buffer, value: Buffer) {
@@ -233,35 +236,38 @@ trait HttpEndpoint { outer =>
     this
   }
   def get: HttpResponse = {
-    var retry = true
-    var uri = str
-    var status = -1
-    var content = ""
-    while(retry) {
-        var ex = new MyContentExchange
-        retry = false
-	    ex.setURL(uri)
-	    headers foreach { 
-	      hdr => 
-	        ex.addRequestHeader(hdr._1, hdr._2)
-	    }
-	    httpClient.send(ex)
-	    ex.waitForDone
-	    if( movedCodes contains ex.getResponseStatus()) {
-	      val location = ex.headers.get("Location")
-	      location foreach { loc =>
-	        uri = loc
-	        retry = true
-	      }
-	    }
-	    status = ex.getResponseStatus 
-	    content = ex.getResponseContent
-    }
-    new HttpResponse(status, null, content)
+    return getInternal(str,5, List[String]())
   }
-
+  
+  private [this] def getInternal(
+		  				uri: String, 
+		  				tries: Int, 
+		  				traversed: List[String]) : HttpResponse = {
+    var ex = new HattipContentExchange
+	ex.setURL(uri)
+	headers foreach { 
+	  hdr => 
+	    ex.addRequestHeader(hdr._1, hdr._2)
+	}
+	httpClient.send(ex)
+	ex.waitForDone
+	val status = ex.getResponseStatus
+	val content = ex.getResponseContent
+	// is the status - page moved?
+	if ((movedCodes contains status) && tries> 0) {
+	  // page has moved so get the new page
+	  ex.headers.get("Location") foreach { newUri =>
+	    // check for page already traversed (loops)
+	    if(!(traversed contains newUri)) {
+	      return getInternal(newUri, tries -1, newUri :: traversed)
+	    }
+	  }
+	}
+    return new HttpResponse(status, ex.headers, content)
+  }
+  
   def post(data: String): HttpResponse = {
-    val ex = new ContentExchange
+    val ex = new HattipContentExchange
     ex.setMethod("POST")
     ex.setURL(str)
 
@@ -270,7 +276,7 @@ trait HttpEndpoint { outer =>
     headers foreach { hdr => ex.addRequestHeader(hdr._1, hdr._2)}
     httpClient.send(ex)
     ex.waitForDone
-    new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
+    new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContent)
   }
 
   def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(str + "/" + additional)
