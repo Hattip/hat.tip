@@ -170,6 +170,10 @@ class WrappedConnection(connection: Connection, wSocket: WrappedWebSocket) {
   def !(message: String) = {
     connection.sendMessage(message)
   }
+  
+  def close() = {
+    connection.close()
+  }
 }
 // Phantom types to ensure proper creation of HttpEndpoint.
 sealed trait HttpEndpointConstructionStage
