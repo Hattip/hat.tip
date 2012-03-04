@@ -52,6 +52,15 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
             List[(String,String)](("Host","localhost:8088"))))
     }
 
+    "be able to handle redirects successfully" in {
+      listener.clear()
+      val response = host / "301.html" get;
+      response.code must_== 200
+      response.contents must contain("<html>Hello World!</html>")
+      listener.get must_== Some(Req("GET","/index.html",emptyQueryStringMap,
+            List[(String,String)](("Host","localhost:8088"))))
+    }
+
     "be able to pass headers successfully" in {
       listener.clear()
       val response = host withHeaders(

@@ -3,12 +3,10 @@ package in.hattip
 import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
-
 import scala.Function.tupled
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable
 import scala.xml.XML
-
 import org.eclipse.jetty.client.security.HashRealmResolver
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.ContentExchange
@@ -19,8 +17,8 @@ import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
-
 import com.codecommit.antixml
+import org.eclipse.jetty.io.Buffer
 
 //trait HttpCode{
 //  val code: Int
@@ -114,6 +112,13 @@ object Redirection {
     code >= 300 && code <= 399
   }
 }
+
+object Moved {
+  val codes = Set(301,302,303,307)
+  def unapply(code: Int) : Boolean = {
+    codes contains code
+  }
+}
 object ClientError {
   def unapply(code: Int) : Boolean = {
     code >= 400 && code <= 499
@@ -189,10 +194,20 @@ sealed trait HttpEndpointConstructionStage
 trait UriStage extends HttpEndpointConstructionStage
 trait QueryParamStage extends HttpEndpointConstructionStage
 
+class MyContentExchange extends ContentExchange {
+  val headerBuffer = ListBuffer[(String,String)]()
+  lazy val headers = Map[String,String](headerBuffer toList:_*)
+  override def onResponseHeader(name: Buffer, value: Buffer) {
+    headerBuffer.append((name.toString, value.toString()))
+    super.onResponseHeader(name,value)
+  }
+}
 trait HttpEndpoint { outer =>
 
   type S <: HttpEndpointConstructionStage
-
+  
+  val movedCodes = Set(301,302,303,307)
+  
   // Initialization code
   val httpClient = new HttpClient
   httpClient.start
@@ -218,15 +233,31 @@ trait HttpEndpoint { outer =>
     this
   }
   def get: HttpResponse = {
-    val ex = new ContentExchange
-    ex.setURL(str)
-    headers map { 
-      hdr => 
-        ex.addRequestHeader(hdr._1, hdr._2)
+    var retry = true
+    var uri = str
+    var status = -1
+    var content = ""
+    while(retry) {
+        var ex = new MyContentExchange
+        retry = false
+	    ex.setURL(uri)
+	    headers foreach { 
+	      hdr => 
+	        ex.addRequestHeader(hdr._1, hdr._2)
+	    }
+	    httpClient.send(ex)
+	    ex.waitForDone
+	    if( movedCodes contains ex.getResponseStatus()) {
+	      val location = ex.headers.get("Location")
+	      location foreach { loc =>
+	        uri = loc
+	        retry = true
+	      }
+	    }
+	    status = ex.getResponseStatus 
+	    content = ex.getResponseContent
     }
-    httpClient.send(ex)
-    ex.waitForDone
-    new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
+    new HttpResponse(status, null, content)
   }
 
   def post(data: String): HttpResponse = {
@@ -236,7 +267,7 @@ trait HttpEndpoint { outer =>
 
     ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8");
     ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
-    headers map { hdr => ex.addRequestHeader(hdr._1, hdr._2)}
+    headers foreach { hdr => ex.addRequestHeader(hdr._1, hdr._2)}
     httpClient.send(ex)
     ex.waitForDone
     new HttpResponse(ex.getResponseStatus, ex.getResponseFields, ex.getResponseContent)
@@ -253,7 +284,7 @@ trait HttpEndpoint { outer =>
   }
   
   def withHeaders(headers: (String,String)*) = {
-    headers map { this.headers += }
+    headers foreach { this.headers += }
     this
   }
   def open(protocol: String) : WrappedConnection = {
