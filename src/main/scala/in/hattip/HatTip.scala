@@ -4,21 +4,16 @@ import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-import scala.Function.tupled
-import scala.collection.mutable.ListBuffer
-import scala.xml.XML
-
-import org.eclipse.jetty.client.security.HashRealmResolver
-import org.eclipse.jetty.client.security.Realm
-import org.eclipse.jetty.client.ContentExchange
-import org.eclipse.jetty.client.HttpClient
-import org.eclipse.jetty.http.HttpFields
+import org.eclipse.jetty.client.{ContentExchange, HttpClient}
+import org.eclipse.jetty.client.security.{HashRealmResolver, Realm}
 import org.eclipse.jetty.io.{Buffer => JettyBuffer}
 import org.eclipse.jetty.io.ByteArrayBuffer
-import org.eclipse.jetty.websocket.WebSocket.Connection
-import org.eclipse.jetty.websocket.WebSocket
-import org.eclipse.jetty.websocket.WebSocketClient
-import org.eclipse.jetty.websocket.WebSocketClientFactory
+import org.eclipse.jetty.websocket.{WebSocket, WebSocketClient, WebSocketClientFactory}
+import WebSocket.Connection
+
+import Function.tupled
+import collection.mutable.ListBuffer
+import xml.XML
 
 import com.codecommit.antixml
 
@@ -29,11 +24,11 @@ object Hattip {
     def unapply(code: HttpResponseCode): Boolean = f(code)
   }
 
-  lazy val AccessControlFailure = HttpResponseCodeClass(Set(401,402,403,405,406))
+  lazy val AccessControlFailure = HttpResponseCodeClass(Set(401, 402, 403, 405, 406))
   lazy val Success = HttpResponseCodeClass(code => code >= 200 && code <= 299)
   lazy val Failure = HttpResponseCodeClass(code => code < 200 || code > 299)
   lazy val Redirection = HttpResponseCodeClass(code => code >= 300 && code <= 399)
-  lazy val Moved = HttpResponseCodeClass(Set(301,302,303,307))
+  lazy val Moved = HttpResponseCodeClass(Set(301, 302, 303, 307))
   lazy val ClientError = HttpResponseCodeClass(code => code >= 400 && code <= 499)
   lazy val ServerError = HttpResponseCodeClass(code => code >= 500 && code <= 599)
   lazy val NotFound = HttpResponseCodeClass(404 ==)
@@ -62,20 +57,23 @@ object Hattip {
 
     var textHandler: Option[String => Unit] = None
 
-    def onMessage(f: String => Unit) {
+    def onMessage(f: String => Unit): Unit = {
       textHandler = Some(f)
     }
 
-    def onOpen(connection: Connection) {
+    def onOpen(connection: Connection): Unit = {
       this.connection = Some(connection)
     }
-    def onClose(code: Int, message: String) {
+
+    def onClose(code: Int, message: String): Unit = {
       connection = None
     }
-    def onMessage(message: String) {
+
+    def onMessage(message: String): Unit = {
       textHandler foreach (_(message))
     }
-    def onMessage(data: Array[Byte], offset: Int, length: Int) {
+
+    def onMessage(data: Array[Byte], offset: Int, length: Int): Unit = {
       println("Client receives data " + length + " bytes long")
     }
   }
@@ -95,7 +93,7 @@ object Hattip {
   }
 
   class HattipContentExchange extends ContentExchange {
-    val headerBuffer = ListBuffer.empty[(String,String)]
+    private val headerBuffer = ListBuffer.empty[(String,String)]
 
     def headers = headerBuffer.toMap
 
@@ -106,16 +104,16 @@ object Hattip {
   }
 
   // Phantom types to ensure proper creation of HttpEndpoint.
-  // TODO: Has flaws. Rectify.
-  sealed trait HttpEndpointConstructionStage
-  trait UriStage extends HttpEndpointConstructionStage
-  trait QueryParamStage extends HttpEndpointConstructionStage
+  trait HttpEndpointConstructionStage {
+    trait Open extends HttpEndpointConstructionStage
+    trait Closed extends HttpEndpointConstructionStage
+  }
 
   trait HttpEndpoint { outer =>
-    type S <: HttpEndpointConstructionStage
+    type E <: HttpEndpointConstructionStage
 
     // FIX: This does not belong here. Should be listed as a constant elsewhere.
-    val movedCodes = Set(301,302,303,307)
+    val movedCodes = Set(301, 302, 303, 307)
 
     // Initialization code
     private val httpClient = new HttpClient
@@ -123,7 +121,7 @@ object Hattip {
     httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
 
     require(
-      Set("http://", "https://", "ws://").exists(uri.startsWith),
+      Set("http://", "https://", "ws://") exists uri.startsWith,
       "Invalid Http Endpoint String " + uri
     )
 
@@ -135,9 +133,9 @@ object Hattip {
       val resolver = new HashRealmResolver
       resolver addSecurityRealm {
         new Realm {
-          override def getId = realm
-          override def getPrincipal = principal
-          override def getCredentials = credentials
+          def getId = realm
+          def getPrincipal = principal
+          def getCredentials = credentials
         }
       }
       httpClient.setRealmResolver(resolver)
@@ -187,12 +185,14 @@ object Hattip {
       new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContent)
     }
 
-    def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(uri + "/" + additional)
+    def /(additional: String)(implicit ev: E =:= HttpEndpointConstructionStage#Open) = {
+      HttpEndpoint(uri + "/" + additional)
+    }
 
-    def ?(elements: (String, String)*) = {
+    def ?(elements: (String, String)*)(implicit ev: E =:= HttpEndpointConstructionStage#Open) = {
       val res = elements map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
       new HttpEndpoint {
-        type S = QueryParamStage
+        type E = HttpEndpointConstructionStage#Closed
         def uri = outer.uri + "?" + res
       }
     }
@@ -213,7 +213,7 @@ object Hattip {
 
   object HttpEndpoint {
     def apply(s: String) = new HttpEndpoint {
-      type S = UriStage
+      type E = HttpEndpointConstructionStage#Open
       def uri = s
     }
   }
