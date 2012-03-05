@@ -23,25 +23,25 @@ import org.eclipse.jetty.websocket.WebSocketClientFactory
 import com.codecommit.antixml
 
 object Hattip {
-  type ErrorCode = Int
+  type HttpResponseCode = Int
 
-  case class ErrorCodeClass(f: ErrorCode => Boolean) {
-    def unapply(code: ErrorCode): Boolean = f(code)
+  case class HttpResponseCodeClass(f: HttpResponseCode => Boolean) {
+    def unapply(code: HttpResponseCode): Boolean = f(code)
   }
 
-  lazy val AccessControlFailure = ErrorCodeClass(Set(401,402,403,405,406))
-  lazy val Success = ErrorCodeClass(code => code >= 200 && code <= 299)
-  lazy val Failure = ErrorCodeClass(code => code < 200 || code > 299)
-  lazy val Redirection = ErrorCodeClass(code => code >= 300 && code <= 399)
-  lazy val Moved = ErrorCodeClass(Set(301,302,303,307))
-  lazy val ClientError = ErrorCodeClass(code => code >= 400 && code <= 499)
-  lazy val ServerError = ErrorCodeClass(code => code >= 500 && code <= 599)
-  lazy val NotFound = ErrorCodeClass(404 ==)
+  lazy val AccessControlFailure = HttpResponseCodeClass(Set(401,402,403,405,406))
+  lazy val Success = HttpResponseCodeClass(code => code >= 200 && code <= 299)
+  lazy val Failure = HttpResponseCodeClass(code => code < 200 || code > 299)
+  lazy val Redirection = HttpResponseCodeClass(code => code >= 300 && code <= 399)
+  lazy val Moved = HttpResponseCodeClass(Set(301,302,303,307))
+  lazy val ClientError = HttpResponseCodeClass(code => code >= 400 && code <= 499)
+  lazy val ServerError = HttpResponseCodeClass(code => code >= 500 && code <= 599)
+  lazy val NotFound = HttpResponseCodeClass(404 ==)
 
-  case class HttpResponse(code: ErrorCode, headers: Map[String,String], contents: String) {
+  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], contents: String) {
     def asXml = XML.loadString(contents)
     def asAntiXml = antixml.XML.fromString(contents)
-    def process(f: PartialFunction[ErrorCode, Unit]) = f(code)
+    def process(f: PartialFunction[HttpResponseCode, Unit]) = f(code)
     override def toString = "Response(code = %d, contents = %s)" format (code, contents)
   }
 
@@ -56,8 +56,7 @@ object Hattip {
     }
   }
 
-  // TODO: See if this can be made private.
-  class WrappedWebSocket extends WebSocket with WebSocket.OnTextMessage with WebSocket.OnBinaryMessage {
+  private class WrappedWebSocket extends WebSocket with WebSocket.OnTextMessage with WebSocket.OnBinaryMessage {
     var connection: Option[Connection] = None
     var closed = false
 
@@ -98,8 +97,7 @@ object Hattip {
   class HattipContentExchange extends ContentExchange {
     val headerBuffer = ListBuffer.empty[(String,String)]
 
-    // FIX: Shouldn't this be a def?
-    lazy val headers = headerBuffer.toMap
+    def headers = headerBuffer.toMap
 
     override def onResponseHeader(name: JettyBuffer, value: JettyBuffer): Unit = {
       headerBuffer.append((name.toString, value.toString))
@@ -125,12 +123,11 @@ object Hattip {
     httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
 
     require(
-      Set("http://", "https://", "ws://").exists(str.startsWith),
-      "Invalid Http Endpoint String " + str
+      Set("http://", "https://", "ws://").exists(uri.startsWith),
+      "Invalid Http Endpoint String " + uri
     )
 
-    // FIX: Could have a more descriptive name?
-    def str: String
+    def uri: String
 
     private val headers = ListBuffer.empty[(String,String)]
 
@@ -147,7 +144,7 @@ object Hattip {
       this
     }
 
-    def get: HttpResponse = getInternal(str, 5, Nil)
+    def get: HttpResponse = getInternal(uri, 5, Nil)
 
     // TODO: Recursion should be avoided.
     // FIX: return is considered a code smell in Scala code. Should be avoided.
@@ -179,8 +176,9 @@ object Hattip {
     def post(data: String): HttpResponse = {
       val ex = new HattipContentExchange
       ex.setMethod("POST")
-      ex.setURL(str)
+      ex.setURL(uri)
 
+      // TODO: remove the hardcoding of content-type
       ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
       ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
       headers foreach tupled(ex.addRequestHeader)
@@ -189,13 +187,13 @@ object Hattip {
       new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContent)
     }
 
-    def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(str + "/" + additional)
+    def /(additional: String)(implicit ev: S =:= UriStage) = HttpEndpoint(uri + "/" + additional)
 
     def ?(elements: (String, String)*) = {
       val res = elements map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
       new HttpEndpoint {
         type S = QueryParamStage
-        def str = outer.str + "?" + res
+        def uri = outer.uri + "?" + res
       }
     }
 
@@ -207,7 +205,7 @@ object Hattip {
     def open(protocol: String): WrappedConnection = {
       val client = WsConnection(protocol)
       val wSocket = new WrappedWebSocket
-      val future = client.open(new URI(str), wSocket)
+      val future = client.open(new URI(uri), wSocket)
       val connection = future.get(10, TimeUnit.SECONDS)
       new WrappedConnection(connection, wSocket)
     }
@@ -216,7 +214,7 @@ object Hattip {
   object HttpEndpoint {
     def apply(s: String) = new HttpEndpoint {
       type S = UriStage
-      def str = s
+      def uri = s
     }
   }
 
