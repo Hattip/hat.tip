@@ -1,9 +1,11 @@
 package in.hattip
 
+import java.io.FileOutputStream
 import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import scala.Function.tupled
+import scala.actors.Futures.future
 import scala.collection.mutable.ListBuffer
 import scala.xml.XML
 import org.eclipse.jetty.client.security.HashRealmResolver
@@ -17,8 +19,7 @@ import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
 import com.codecommit.antixml
-import scala.io.Source
-import java.io.FileOutputStream
+import scala.actors.Future
 
 object Hattip {
   type HttpResponseCode = Int
@@ -36,7 +37,9 @@ object Hattip {
   lazy val ServerError = HttpResponseCodeClass(code => code >= 500 && code <= 599)
   lazy val NotFound = HttpResponseCodeClass(404 ==)
 
-  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], bytes: Array[Byte]) {
+  case class HttpResponse(code: HttpResponseCode, 
+      headers: Map[String,String], 
+      bytes: Array[Byte]) {
     def string(encoding: String) = new String(bytes, encoding)
     def string = new String(bytes, "utf-8")
     def asXml = XML.loadString(string)
@@ -154,10 +157,22 @@ object Hattip {
       this
     }
 
+    def gett : Future[HttpResponse] = {
+      val ex = new HattipContentExchange
+      ex.setURL(uri)
+      headers foreach tupled(ex.addRequestHeader)
+      httpClient.send(ex)
+      future {
+        ex.waitForDone();
+        new HttpResponse(
+            ex.getResponseStatus, 
+            ex.headers,
+            ex.getResponseContentBytes)
+      }
+    }
+    
     def get: HttpResponse = getInternal(uri, 5, Nil)
 
-    // TODO: Recursion should be avoided.
-    // FIX: return is considered a code smell in Scala code. Should be avoided.
     private[this] def getInternal(
       uri: String,
       tries: Int,

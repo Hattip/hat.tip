@@ -50,6 +50,17 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
             List[(String,String)](("Host","localhost:8088"))))
     }
 
+    "fetch a page asynchronously" in {
+      listener.clear()
+      val future = host.gett
+      Thread.sleep(2)
+      val response = future()
+      response.code must_== 200
+      response.string must contain("<html>Hello World!</html>")
+      listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
+            List[(String,String)](("Host","localhost:8088"))))
+    }
+
     "write to a file" in {
       listener.clear()
       val response = host.get
