@@ -3,19 +3,22 @@ package in.hattip
 import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
-
-import org.eclipse.jetty.client.{ContentExchange, HttpClient}
-import org.eclipse.jetty.client.security.{HashRealmResolver, Realm}
+import scala.Function.tupled
+import scala.collection.mutable.ListBuffer
+import scala.xml.XML
+import org.eclipse.jetty.client.security.HashRealmResolver
+import org.eclipse.jetty.client.security.Realm
+import org.eclipse.jetty.client.ContentExchange
+import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.io.{Buffer => JettyBuffer}
 import org.eclipse.jetty.io.ByteArrayBuffer
-import org.eclipse.jetty.websocket.{WebSocket, WebSocketClient, WebSocketClientFactory}
-import WebSocket.Connection
-
-import Function.tupled
-import collection.mutable.ListBuffer
-import xml.XML
-
+import org.eclipse.jetty.websocket.WebSocket.Connection
+import org.eclipse.jetty.websocket.WebSocket
+import org.eclipse.jetty.websocket.WebSocketClient
+import org.eclipse.jetty.websocket.WebSocketClientFactory
 import com.codecommit.antixml
+import scala.io.Source
+import java.io.FileOutputStream
 
 object Hattip {
   type HttpResponseCode = Int
@@ -33,10 +36,19 @@ object Hattip {
   lazy val ServerError = HttpResponseCodeClass(code => code >= 500 && code <= 599)
   lazy val NotFound = HttpResponseCodeClass(404 ==)
 
-  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], contents: String) {
-    def asXml = XML.loadString(contents)
-    def asAntiXml = antixml.XML.fromString(contents)
+  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], contents: Array[Byte]) {
+    def strContents(encoding: String) = new String(contents, encoding)
+    def strContents = new String(contents, "utf-8")
+    def asXml = XML.loadString(strContents)
+    def asAntiXml = antixml.XML.fromString(strContents)
     def process(f: PartialFunction[HttpResponseCode, Unit]) = f(code)
+    def toFile(path: String) = {
+      val fos = new FileOutputStream(path)
+      fos.write(contents)
+      fos.close()
+    }
+    def >>> = toFile _
+    
     override def toString = "Response(code = %d, contents = %s)" format (code, contents)
   }
 
@@ -157,7 +169,7 @@ object Hattip {
       httpClient.send(ex)
       ex.waitForDone
       val status = ex.getResponseStatus
-      val content = ex.getResponseContent
+      val content = ex.getResponseContentBytes
       // is the status - page moved?
       if ((movedCodes contains status) && tries> 0) {
         // page has moved so get the new page
@@ -182,7 +194,7 @@ object Hattip {
       headers foreach tupled(ex.addRequestHeader)
       httpClient.send(ex)
       ex.waitForDone
-      new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContent)
+      new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContentBytes)
     }
 
     def /(additional: String)(implicit ev: E =:= HttpEndpointConstructionStage#Open) = {
