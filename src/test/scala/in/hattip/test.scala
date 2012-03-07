@@ -45,7 +45,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val response = host.get
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
             List[(String,String)](("Host","localhost:8088"))))
     }
@@ -65,7 +65,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val response = host / "301.html" get;
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/index.html",emptyQueryStringMap,
             List[(String,String)](("Host","localhost:8088"))))
     }
@@ -77,7 +77,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
           "baz"->"jaz").get
 
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
             List[(String,String)](
                 ("Host","localhost:8088"), 
@@ -89,7 +89,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val response = ((host / "index.html") ? ("foo" -> "bar", "baz" -> "jaz")).get
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/index.html",
           SortedMap("foo" -> Array[String]("bar"), "baz" -> Array[String]("jaz")),
             List[(String,String)](("Host","localhost:8088"))))
@@ -99,7 +99,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val response = ((host / "index.html") ? ("f+o o" -> "b a r", "baz" -> "jaz")).get
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/index.html",
           SortedMap("f+o o" -> Array[String]("b a r"), "baz" -> Array[String]("jaz")),
             List[(String,String)](("Host","localhost:8088"))))
@@ -144,7 +144,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
               a long string"""
       val response = host / "post.do" post(longString);
       response.code must_== 200
-      response.strContents must contain("very very long")
+      response.string must contain("very very long")
       val data = listener.get.get.data
       listener.get must_== Some(Req("POST","/post.do",emptyQueryStringMap,List[(String,String)](
           ("Host","localhost:8088"),
@@ -186,7 +186,7 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       listener.clear()
       val response = sslHost.get
       response.code must_== 200
-      response.strContents must contain("<html>Hello World!</html>")
+      response.string must contain("<html>Hello World!</html>")
       listener.get must_== Some(Req("GET","/",emptyQueryStringMap,
             List[(String,String)](("Host","localhost:8443")),secure=true))
     }

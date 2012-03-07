@@ -36,20 +36,20 @@ object Hattip {
   lazy val ServerError = HttpResponseCodeClass(code => code >= 500 && code <= 599)
   lazy val NotFound = HttpResponseCodeClass(404 ==)
 
-  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], contents: Array[Byte]) {
-    def strContents(encoding: String) = new String(contents, encoding)
-    def strContents = new String(contents, "utf-8")
-    def asXml = XML.loadString(strContents)
-    def asAntiXml = antixml.XML.fromString(strContents)
+  case class HttpResponse(code: HttpResponseCode, headers: Map[String,String], bytes: Array[Byte]) {
+    def string(encoding: String) = new String(bytes, encoding)
+    def string = new String(bytes, "utf-8")
+    def asXml = XML.loadString(string)
+    def asAntiXml = antixml.XML.fromString(string)
     def process(f: PartialFunction[HttpResponseCode, Unit]) = f(code)
     def toFile(path: String) = {
       val fos = new FileOutputStream(path)
-      fos.write(contents)
+      fos.write(bytes)
       fos.close()
     }
     def >>> = toFile _
     
-    override def toString = "Response(code = %d, contents = %s)" format (code, contents)
+    override def toString = "Response(code = %d, contents = %s)" format (code, bytes)
   }
 
   object WsConnection {
