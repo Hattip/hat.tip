@@ -236,14 +236,30 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       conn ! "message .. message .. message"
       true must_==(true)
     }
+    
     "be able to read a websocket text message" in {
       listener.clear()
       val conn = wsHost open "in.hattip.hattip";
       var receivedPong = false
-      conn setMessageHandler { msg =>
+      conn setTextHandler { msg =>
         receivedPong = msg == "pong"
       }
       conn ! "ping"
+      // sleep to wait to get the response back
+      Thread.sleep(2000)
+      receivedPong must_==(true)
+    }
+  
+    "be able to read a websocket binary message" in {
+      listener.clear()
+      val conn = wsHost open "in.hattip.hattip";
+      var receivedPong = false
+      val sendBytes: Array[Byte] = Array[Byte](0,65,127,0,66,127,0,67,127)
+      val recvBytes = sendBytes reverse;
+      conn setBinaryHandler { data =>
+        receivedPong = java.util.Arrays.equals(data, recvBytes)
+      }
+      conn ! sendBytes
       // sleep to wait to get the response back
       Thread.sleep(2000)
       receivedPong must_==(true)

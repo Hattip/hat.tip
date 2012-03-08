@@ -72,9 +72,14 @@ object Hattip {
     var closed = false
 
     var textHandler: Option[String => Unit] = None
+    var binaryHandler: Option[Array[Byte] => Unit] = None
 
-    def onMessage(f: String => Unit): Unit = {
+    def setTextHandler(f: String => Unit): Unit = {
       textHandler = Some(f)
+    }
+
+    def setBinaryHandler(f: Array[Byte] => Unit) = {
+      binaryHandler = Some(f)
     }
 
     def onOpen(connection: Connection): Unit = {
@@ -90,17 +95,26 @@ object Hattip {
     }
 
     def onMessage(data: Array[Byte], offset: Int, length: Int): Unit = {
-      println("Client receives data " + length + " bytes long")
+      binaryHandler foreach(_(data.slice(offset,offset+length)))
     }
+    
   }
 
   class WrappedConnection(connection: Connection, wSocket: WrappedWebSocket) {
-    def setMessageHandler(f: String => Unit): Unit = {
-      wSocket.onMessage(f)
+    def setTextHandler(f: String => Unit): Unit = {
+      wSocket.setTextHandler(f)
+    }
+    
+    def setBinaryHandler(f: Array[Byte] => Unit): Unit = {
+      wSocket.setBinaryHandler(f)
     }
     
     def !(message: String): Unit = {
       connection.sendMessage(message)
+    }
+
+    def !(message: Array[Byte]): Unit = {
+      connection.sendMessage(message,0,message.length)
     }
 
     def close(): Unit = {

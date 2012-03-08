@@ -179,13 +179,14 @@ class TestWebSocket extends WebSocket.OnTextMessage with WebSocket.OnBinaryMessa
     
   }
   def onMessage(message: String) {
-    println("Received text message: " + message)
     if (message == "ping") {
       this.connection foreach { _.sendMessage("pong")}
     }
   } 
   def onMessage(data: Array[Byte], offset: Int, length: Int) {
-    println("Received data " + length + " bytes long")
+    this.connection foreach {
+      _.sendMessage(data.slice(offset,offset+length).reverse,0,length)
+    }
   }
 }
 object WebsocketServer extends Server {
