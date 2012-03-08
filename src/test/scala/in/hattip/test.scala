@@ -205,6 +205,20 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
     "be able perform basic authentication" in {
       listener.clear()
       var authenticated = false;
+      (host2 / "secure" / "index.html" as("jetty", "jetty") get) process { 
+        case(Success()) => authenticated = true
+      }
+
+      authenticated must_==(true)
+      listener.get must_== Some(Req("GET","/secure/index.html",emptyQueryStringMap,
+                                    List[(String,String)](
+                                        ("Host","localhost:9088"),
+                                        ("Authorization","Basic amV0dHk6amV0dHk=")) sorted))
+    }
+    
+    "be able perform basic authentication for a specific realm" in {
+      listener.clear()
+      var authenticated = false;
       (host2 / "secure" / "index.html" as("realm", "jetty", "jetty") get) process { 
         case(Success()) => authenticated = true
       }

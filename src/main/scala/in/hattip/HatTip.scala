@@ -20,6 +20,7 @@ import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
 import com.codecommit.antixml
 import scala.actors.Future
+import org.eclipse.jetty.client.security.SimpleRealmResolver
 
 object Hattip {
   type HttpResponseCode = Int
@@ -153,6 +154,18 @@ object Hattip {
           def getCredentials = credentials
         }
       }
+      httpClient.setRealmResolver(resolver)
+      this
+    }
+    
+    def as(principal: String, credentials: String): HttpEndpoint = {
+      val resolver = new SimpleRealmResolver(
+        new Realm {
+          def getId = null
+          def getPrincipal = principal
+          def getCredentials = credentials
+        }
+      )
       httpClient.setRealmResolver(resolver)
       this
     }
