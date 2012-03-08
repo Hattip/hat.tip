@@ -17,15 +17,17 @@ version = '0.0.1-SNAPSHOT'
 
 jetty_version = "8.1.0.v20120127"
 
+scalaVersion =  "2.9.1"
+
 dependencies {
-  scalaTools    'org.scala-lang:scala-compiler:2.9.1',
-                'org.scala-lang:scala-library:2.9.1'
+  scalaTools    'org.scala-lang:scala-compiler:' + scalaVersion,
+                'org.scala-lang:scala-library:' + scalaVersion
 
   compile       'ch.qos.logback:logback-classic:1.0.0',
                 'org.eclipse.jetty.aggregate:jetty-websocket:' + jetty_version,
                 'org.eclipse.jetty.aggregate:jetty-client:' + jetty_version,
                 'com.codecommit:anti-xml_2.9.1:0.3',
-                'org.scala-lang:scala-library:2.9.1'
+                'org.scala-lang:scala-library:' + scalaVersion
 
   testCompile   'junit:junit:4.5',
                 'org.specs2:specs2_2.9.1:1.6.1',
