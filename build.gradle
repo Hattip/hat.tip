@@ -1,8 +1,9 @@
 // hat.tip
 apply plugin: 'idea'
 apply plugin: 'eclipse'
-apply plugin: 'scala'
 apply plugin: 'maven'
+apply plugin: 'osgi'
+apply plugin: 'scala'
 
 repositories {
     mavenLocal()
@@ -46,3 +47,14 @@ project.tasks.install.repositories.mavenInstaller.pom.whenConfigured {pom ->
     }
 }
 
+jar {
+    manifest { 
+        name = 'HatTip'
+        instruction 'Bundle-Vendor', 'Dhananjay Nene'
+        instruction 'Bundle-Description', 'HTTP Made Easy. A scala http client library.'
+        instruction 'Bundle-DocURL', 'http://hattip.in'
+        instruction 'Bundle-Version', project.version.replace('-','.')
+        instruction 'Bundle-Name', project.groupId + "_" + project.artifactId
+        instruction 'Bundle-SymbolicName', project.groupId + "_" + project.artifactId
+    }
+}
