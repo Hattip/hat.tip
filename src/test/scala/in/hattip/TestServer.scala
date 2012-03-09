@@ -86,8 +86,6 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
               """)
         case Req("GET","/nonexistent.file",_,_,_,_) =>
           response.setStatus(HttpServletResponse.SC_NOT_FOUND)
-        case Req("POST","/post.do",_,_,_,_) =>
-          response.getWriter().println(req.data)
         case Req("GET","/301.html",_,_,_,_) =>
           response.setStatus(301)
           response.setHeader("Location", "http://localhost:8088/index.html")
@@ -95,6 +93,8 @@ class TestHandler(l: RequestListener) extends AbstractHandler {
           response.getWriter().println("<html><head><title>Moved</title></head></html>")
         case Req("GET","/secure/index.html",_,_,_,_) =>
           response.getWriter().println("<html>Hello Secure World!</html>")
+        case Req("POST","/post.do",_,_,_,_) =>
+          response.getWriter().println(req.data)
       }
       baseReq.setHandled(true)
     }

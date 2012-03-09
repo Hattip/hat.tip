@@ -159,9 +159,38 @@ class TestHattip extends SpecificationWithJUnit with BeforeExample with AfterExa
       val data = listener.get.get.data
       listener.get must_== Some(Req("POST","/post.do",emptyQueryStringMap,List[(String,String)](
           ("Host","localhost:8088"),
-          ("Content-Length", longString.length().toString()),
-          ("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
+          ("Content-Length", longString.length().toString())
           ) sorted,longString))
+   }
+
+    "post form as map of values successfully" in {
+      listener.clear()
+      val response = host / "post.do" post(Map("email" -> "me@example.com", "town" -> "any<town"));
+      val expected = "email=me%40example.com&town=any%3Ctown"
+      response.code must_== 200
+      log.debug(response.string)
+      response.string must_==("email=me%40example.com&town=any%3Ctown\n")
+      val data = listener.get.get.data
+      listener.get must_== Some(Req("POST","/post.do",emptyQueryStringMap,List[(String,String)](
+          ("Host","localhost:8088"),
+          ("Content-Length", expected.length.toString),
+          ("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
+          ) sorted,expected))
+   }
+
+    "post form as list of values successfully" in {
+      listener.clear()
+      val response = host / "post.do" post("email" -> "me@example.com", "town" -> "any<town");
+      val expected = "email=me%40example.com&town=any%3Ctown"
+      response.code must_== 200
+      log.debug(response.string)
+      response.string must_==("email=me%40example.com&town=any%3Ctown\n")
+      val data = listener.get.get.data
+      listener.get must_== Some(Req("POST","/post.do",emptyQueryStringMap,List[(String,String)](
+          ("Host","localhost:8088"),
+          ("Content-Length", expected.length.toString),
+          ("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
+          ) sorted,expected))
    }
 
     "parse data as xml" in {

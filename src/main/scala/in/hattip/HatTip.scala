@@ -240,9 +240,37 @@ object Hattip {
       ex.setMethod("POST")
       ex.setURL(uri)
 
-      // TODO: remove the hardcoding of content-type
-      ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
       ex.setRequestContent(new ByteArrayBuffer(data.getBytes))
+      headers foreach tupled(ex.addRequestHeader)
+      httpClient.send(ex)
+      ex.waitForDone
+      new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContentBytes)
+    }
+
+    def post(data: Map[String,String]): HttpResponse = {
+      val ex = new HattipContentExchange
+      ex.setMethod("POST")
+      ex.setURL(uri)
+
+      ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
+      val res = data map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
+      log.debug("===>" + res)
+      ex.setRequestContent(new ByteArrayBuffer(res.getBytes))
+      headers foreach tupled(ex.addRequestHeader)
+      httpClient.send(ex)
+      ex.waitForDone
+      new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContentBytes)
+    }
+
+    def post(data: (String, String)*): HttpResponse = {
+      val ex = new HattipContentExchange
+      ex.setMethod("POST")
+      ex.setURL(uri)
+
+      ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
+      val res = data map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
+      log.debug("===>" + res)
+      ex.setRequestContent(new ByteArrayBuffer(res.getBytes))
       headers foreach tupled(ex.addRequestHeader)
       httpClient.send(ex)
       ex.waitForDone
