@@ -21,8 +21,11 @@ import org.eclipse.jetty.websocket.WebSocketClientFactory
 import com.codecommit.antixml
 import scala.actors.Future
 import org.eclipse.jetty.client.security.SimpleRealmResolver
+import com.weiglewilczek.slf4s.Logger
 
 object Hattip {
+  val log = Logger(getClass)
+
   type HttpResponseCode = Int
 
   case class HttpResponseCodeClass(f: HttpResponseCode => Boolean) {
@@ -47,6 +50,7 @@ object Hattip {
     def asAntiXml = antixml.XML.fromString(string)
     def process(f: PartialFunction[HttpResponseCode, Unit]) = f(code)
     def toFile(path: String) = {
+      log.debug("Writing content to file:" + path)
       val fos = new FileOutputStream(path)
       fos.write(bytes)
       fos.close()
@@ -91,10 +95,12 @@ object Hattip {
     }
 
     def onMessage(message: String): Unit = {
+      log.debug("Received text message of length " + message.length)
       textHandler foreach (_(message))
     }
 
     def onMessage(data: Array[Byte], offset: Int, length: Int): Unit = {
+      log.debug("Received binary message of length " + length)
       binaryHandler foreach(_(data.slice(offset,offset+length)))
     }
     
@@ -110,10 +116,12 @@ object Hattip {
     }
     
     def !(message: String): Unit = {
+      log.debug("Sending binary message of length " + message.length)
       connection.sendMessage(message)
     }
 
     def !(message: Array[Byte]): Unit = {
+      log.debug("Sending binary message of length " + message.length)
       connection.sendMessage(message,0,message.length)
     }
 
@@ -208,10 +216,12 @@ object Hattip {
       val ex = new HattipContentExchange
       ex.setURL(uri)
       headers foreach tupled(ex.addRequestHeader)
+      log.debug("Issuing GET at URI " + uri)
       httpClient.send(ex)
       ex.waitForDone
       val status = ex.getResponseStatus
       val content = ex.getResponseContentBytes
+      log.debug("Received response with status " + status + "," + (if (content == null) 0 else content.length) + " bytes long")
       // is the status - page moved?
       if ((movedCodes contains status) && tries> 0) {
         // page has moved so get the new page
