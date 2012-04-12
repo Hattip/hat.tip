@@ -4,13 +4,11 @@ import java.io.FileOutputStream
 import java.net.URI
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
-
 import scala.Function.tupled
 import scala.actors.Futures.future
 import scala.actors.Future
 import scala.collection.mutable.ListBuffer
 import scala.xml.XML
-
 import org.eclipse.jetty.client.security.HashRealmResolver
 import org.eclipse.jetty.client.security.Realm
 import org.eclipse.jetty.client.security.SimpleRealmResolver
@@ -23,12 +21,68 @@ import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocket
 import org.eclipse.jetty.websocket.WebSocketClient
 import org.eclipse.jetty.websocket.WebSocketClientFactory
-
 import com.codecommit.antixml
 import com.weiglewilczek.slf4s.Logger
+import java.io.File
 
 object Hattip {
   val log = Logger(getClass)
+
+  object FormData {
+    def apply(key: String, value: String) = new FormData(key,value)
+    def apply(key: String, value: File) = {
+      val fileName = value.getName()
+    }
+  }
+  class FormData(key: String, value: String, bytes: Array[Byte] = Array[Byte](), mimetype: String = "application/octet-stream") {
+    
+  }
+  object DataBuffer {
+    // code courtesy: MultiPartOutputStream in jetty
+    val CRLF = "\015\012".getBytes(StringUtil.__ISO_8859_1);
+    val DASHDASH = "--".getBytes(StringUtil.__ISO_8859_1);
+    val CONTENT_TYPE_LENGTH = ("Content-Type: ").getBytes(StringUtil.__ISO_8859_1).length
+  }
+
+  class DataBuffer {
+    // TODO: How could one use java nio buffers ?
+    private [this] val boundaryString = "hattip" + System.identityHashCode(this) + java.lang.Long.toString(System.currentTimeMillis(),36)
+    private var data = ListBuffer[(String, Array[Byte], Array[String])]()
+    def boundary = boundaryString.getBytes(StringUtil.__ISO_8859_1);
+    def add(contentType: String, bytes: Array[Byte], headers: Array[String]) = {
+      data += Tuple3(contentType, bytes, headers)
+    }
+    def toBytes {
+      val totalLength = data.foldLeft(0) { (len, t3) =>
+        val hdrLen = t3._3.foldLeft(0) { (hlen, str) =>
+          hlen + str.getBytes(StringUtil.__ISO_8859_1).length + DataBuffer.CRLF.length
+        }
+        len + (DataBuffer.CONTENT_TYPE_LENGTH * 4) + DataBuffer.DASHDASH.length + hdrLen
+      } - DataBuffer.CRLF.length  // The 4 is subtracted because there is no __CRLF at the very beginning
+      var outBuffer = new Array[Byte](totalLength)
+      var start = 0 
+      def write(source: Array[Byte]): Unit = {
+        System.arraycopy(source,0,outBuffer,start, source.length)
+      }
+      data foreach {t3 =>
+        if (start != 0) {
+          write(DataBuffer.CRLF)
+        }
+        write(DataBuffer.DASHDASH)
+        write(boundary)
+        write(DataBuffer.CRLF)
+        write(("Content-Type: " + t3._1).getBytes(StringUtil.__ISO_8859_1))
+        write(DataBuffer.CRLF)
+        t3._3 foreach { header =>
+          write(header.getBytes(StringUtil.__ISO_8859_1))
+          write(DataBuffer.CRLF)
+        }
+        write(DataBuffer.CRLF)
+        write(t3._2)
+      }
+      outBuffer
+    }
+  }
 
   type HttpResponseCode = Int
 
@@ -239,54 +293,7 @@ object Hattip {
       return new HttpResponse(status, ex.headers, content)
     }
 
-    object DataBuffer {
-      // code courtesy: MultiPartOutputStream in jetty
-      val CRLF = "\015\012".getBytes(StringUtil.__ISO_8859_1);
-      val DASHDASH = "--".getBytes(StringUtil.__ISO_8859_1);
-      val CONTENT_TYPE_LENGTH = ("Content-Type: ").getBytes(StringUtil.__ISO_8859_1).length
-      
-    }
-    
-    class DataBuffer {
-      // TODO: How could one use java nio buffers ?
-      val boundary = "hattip" + System.identityHashCode(this) + java.lang.Long.toString(System.currentTimeMillis(),36)
-      val boundaryBytes=boundary.getBytes(StringUtil.__ISO_8859_1);
-      var buffer = ListBuffer[(String, Array[Byte], Array[String])]()
-      def add(contentType: String, bytes: Array[Byte], headers: Array[String]) = {
-        buffer += Tuple3(contentType, bytes, headers)
-      }
-      def length = (0 /: buffer){ (o, p) => o + DataBuffer.CONTENT_TYPE_LENGTH + p._1.length + p._2.length}
-      def toBytes {
-        val totalLength = buffer.foldLeft(0) { (len, t3) =>
-          val hdrLen = t3._3.foldLeft(0) { (hlen, str) =>
-            hlen + str.getBytes(StringUtil.__ISO_8859_1).length + DataBuffer.CRLF.length
-          }
-          len + (DataBuffer.CONTENT_TYPE_LENGTH * 4) + DataBuffer.DASHDASH.length + hdrLen
-        } - DataBuffer.CRLF.length  // The 4 is subtracted because there is no __CRLF at the very beginning
-        var outBuffer = new Array[Byte](totalLength)
-        var start = 0 
-	    def write(source: Array[Byte]): Unit = {
-	      System.arraycopy(source,0,outBuffer,start, source.length)
-	    }
-        buffer foreach {t3 =>
-           if (start != 0) {
-             write(DataBuffer.CRLF)
-           }
-           write(DataBuffer.DASHDASH)
-           write(boundaryBytes)
-           write(DataBuffer.CRLF)
-           write(("Content-Type: " + t3._1).getBytes(StringUtil.__ISO_8859_1))
-           write(DataBuffer.CRLF)
-           t3._3 foreach { header =>
-             write(header.getBytes(StringUtil.__ISO_8859_1))
-             write(DataBuffer.CRLF)
-           }
-           write(DataBuffer.CRLF)
-           write(t3._2)
-        }
-      }
-    }
-    
+
     def post(data: String): HttpResponse = {
       val ex = new HattipContentExchange
       ex.setMethod("POST")
@@ -329,18 +336,19 @@ object Hattip {
       new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContentBytes)
     }
 
-    def postMulti(data: (String, String)*): HttpResponse = {
+    def postMulti(fields: (String, String)*): HttpResponse = {
       val ex = new HattipContentExchange
       ex.setMethod("POST")
       ex.setURL(uri)
 //      val multi = new MultiPartOutputStream()
       ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
-      val res = data map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
-      log.debug("===>" + res)
-      ex.setRequestContent(new ByteArrayBuffer(res.getBytes))
-      headers foreach tupled(ex.addRequestHeader)
-      httpClient.send(ex)
-      ex.waitForDone
+      val db = new DataBuffer()
+//      val res = data map tupled(URLEncoder.encode(_,"UTF-8") + "=" + URLEncoder.encode(_,"UTF-8")) mkString "&"
+//      log.debug("===>" + res)
+//      ex.setRequestContent(new ByteArrayBuffer(res.getBytes))
+//      headers foreach tupled(ex.addRequestHeader)
+//      httpClient.send(ex)
+//      ex.waitForDone
       new HttpResponse(ex.getResponseStatus, ex.headers, ex.getResponseContentBytes)
     }
 
