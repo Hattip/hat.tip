@@ -1,6 +1,5 @@
 package in.hattip.testserver
 import scala.collection.JavaConverters._
-
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHolder
@@ -11,8 +10,18 @@ import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 import org.specs2.specification.AfterExample
 import org.specs2.specification.BeforeExample
-
 import in.hattip.client.Hattip._
+import org.scalatra.auth.strategy.BasicAuthSupport
+import org.scalatra.auth.strategy.BasicAuthStrategy
+import org.eclipse.jetty.toolchain.test.MavenTestingUtils
+import org.eclipse.jetty.security.ConstraintSecurityHandler
+import org.eclipse.jetty.security.ConstraintMapping
+import org.eclipse.jetty.security.HashLoginService
+import org.eclipse.jetty.server.Handler
+import org.eclipse.jetty.util.security.Constraint
+import org.eclipse.jetty.security.authentication.BasicAuthenticator
+import org.eclipse.jetty.util.security.Credential
+import org.eclipse.jetty.security.SecurityHandler
 
 @RunWith(classOf[JUnitRunner])
 class TestSimpleServer extends SpecificationWithJUnit  with BeforeExample with AfterExample {
@@ -137,25 +146,18 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
     }
     p.toList.mkString("<parameters>","","</parameters>")
   }
-//  get("/") {
-//    <form method="post" enctype="multipart/form-data">
-//      <p>Old File: <input type="file" name="oldFile" /></p>
-//      <p>New File: <input type="file" name="newFile" /></p>
-//      <input type="submit" />
-//    </form>
-//  }
 }
 
 class SimpleServer {
   val server = new Server(8080)
-  def start() = {
-    val context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context setContextPath "/"
-    server setHandler context
+  val context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+  context setContextPath "/"
+  server setHandler context
  
-    context addServlet(new ServletHolder(new SimpleServlet()),"/*");
-    server.start()
-  }
+  context addServlet(new ServletHolder(new SimpleServlet()),"/*");
+    
+  def start() = server.start()
+  
   def stop() = server.stop()
 }
 
