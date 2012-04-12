@@ -13,6 +13,7 @@ import org.eclipse.jetty.client.ContentExchange
 import org.eclipse.jetty.io.{Buffer => JettyBuffer}
 import org.eclipse.jetty.client.HttpClient
 import java.util.regex.Pattern
+import org.eclipse.jetty.io.ByteArrayBuffer
 
 
 object Hattip {
@@ -32,21 +33,18 @@ object Hattip {
     	(path map {"/" + _.toString}).getOrElse("")
       ret
     }
-      
+    
+    def queryString: String = (parameters map tupled {
+            URLEncoder.encode(_,"UTF-8") + "=" + 
+            URLEncoder.encode(_,"UTF-8")}).mkString("&")
+            
     override def toString = {
       scheme + "://" + (credentials map { _._1 + "@"}) +
       	host + (path map {"/" + _}) +
       	("?" + ((parameters map { p => p._1 + "=" + p._2}).mkString("&")))
     }
     
-    def queryUri = {
-      val ret = if (parameters == Nil) uri 
-      else uri + "?" +
-          (parameters map tupled {
-            URLEncoder.encode(_,"UTF-8") + "=" + 
-            URLEncoder.encode(_,"UTF-8")}).mkString("&")
-      ret
-    }
+    def queryUri = if (parameters == Nil) uri else uri + "?" + queryString
   }
   
   type HttpResponseCode = Int
@@ -232,4 +230,38 @@ object Hattip {
         ex.headers,
         ex.getResponseContentBytes)
   }
+	
+  private def postPrepare(r: HttpRequestTrait): HattipContentExchange = {
+    val ex = new HattipContentExchange
+    ex.setMethod("POST")
+    ex.setURL(r.uri)
+    r.headers foreach tupled (ex.addRequestHeader)
+    ex
+  }
+  
+  private def postProcess(ex: HattipContentExchange): HttpResponse = {
+    ex.waitForDone()
+    new HttpResponse(ex.getResponseStatus,
+        ex.headers,
+        ex.getResponseContentBytes)
+  }
+  
+  def post(r: HttpRequestTrait, data: Array[Byte]): HttpResponse = {
+    val ex = postPrepare(r)
+    ex.setRequestContent(new ByteArrayBuffer(data))
+    getClient.send(ex)
+    postProcess(ex)
+  }
+
+  def post(r: HttpRequestTrait, data: (String,String)*): HttpResponse = {
+    val ex = postPrepare(r)
+    ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
+    val content = (data map tupled { (key: String, value: String) =>
+      URLEncoder.encode(key,"UTF-8") + "=" + URLEncoder.encode(value,"UTF-8")
+    } toList).mkString("&");
+    ex.setRequestContent(new ByteArrayBuffer(content getBytes))
+    getClient.send(ex)
+    postProcess(ex)
+  }
+
 }

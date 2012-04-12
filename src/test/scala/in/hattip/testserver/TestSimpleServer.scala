@@ -108,6 +108,28 @@ class TestSimpleServer extends SpecificationWithJUnit  with BeforeExample with A
         case _ => failure
       }
     }
+//  }
+//  
+//  "Post should" {
+    "post arbitrary data correctly" in {
+      val response = post("http://localhost:8080/echopostbody","some a&r-bitrary data" getBytes)
+      response process {
+        case Success() => 
+          response.text must_== "some a&r-bitrary data"
+          success
+        case _ => failure
+      }
+    }
+    "post key value pair correctly" in {
+      val response = post("http://localhost:8080/echopostbody","f+o o" -> "b a r", "baz" -> "jaz")
+      val foo = response.text
+      response process {
+        case Success() => 
+          response.text must_== "f%2Bo+o=b+a+r&baz=jaz"
+          success
+        case _ => failure
+      }
+    }
   }
 }
 
@@ -140,11 +162,17 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
   }
 
   get("/echoquerystring.xml") {
-    println(request.getParameterNames().asScala)
     val p = request.getParameterNames().asScala map { name: String =>
       "<parameter name=\"" + name + "\" values=\"" + request.getParameterValues(name).mkString(",") + "\"/>"
     }
     p.toList.mkString("<parameters>","","</parameters>")
+  }
+  
+  post("/echopostbody") {
+    request.body
+  }
+  post("/echopostparams") {
+    request.body
   }
 }
 
