@@ -12,13 +12,13 @@ repositories {
     maven { url = 'https://oss.sonatype.org/content/groups/public' }
 }
 
-groupId = 'in.hattip'
-artifactId = 'hattip'
+ext.groupId = 'in.hattip'
+ext.artifactId = 'hattip'
 version = '0.0.1-SNAPSHOT'
 
-jetty_version = "8.1.0.v20120127"
+ext.jetty_version = "8.1.0.v20120127"
 
-scalaVersion =  "2.9.1"
+ext.scalaVersion =  "2.9.1"
 
 dependencies {
   scalaTools    'org.scala-lang:scala-compiler:' + scalaVersion,
@@ -34,6 +34,8 @@ dependencies {
   testCompile   'junit:junit:4.5',
                 'org.specs2:specs2_2.9.1:1.6.1',
                 'org.specs2:specs2-scalaz-core_2.9.1:6.0.1',
+                'org.scalatra:scalatra_2.9.1:2.0.4',
+                'org.scalatra:scalatra-fileupload_2.9.1:2.0.4',
                 'org.eclipse.jetty.toolchain:jetty-test-helper:1.6.1',
                 'org.eclipse.jetty.aggregate:jetty-all-server:' + jetty_version,
                 'org.glassfish:javax.servlet:3.0'
