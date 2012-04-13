@@ -144,9 +144,8 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
     }
     "post file uploads correctly" in {
       val response = post("http://localhost:8080/multipart",
-        Array(("name", "this is the name"),
-          ("description", "i am sending you a file")),
-        List(("simplefile", "data/simplefile.txt")))
+        Map("name" -> "this is the name", "description" -> "i am sending you a file"),
+        Map("simplefile" -> "data/simplefile.txt"))
       response process {
         case Success() =>
           response.text must_== "this is the name:i am sending you a file:the quick brown fox jumped over the lazy dog"

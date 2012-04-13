@@ -283,7 +283,7 @@ object Hattip {
     getClient.send(ex)
     postProcess(ex)
   }
-  private def toMultipart(boundary: String, fields: Array[(String, String)], files: List[(String, String)]): MultipartEntity = {
+  private def toMultipart(boundary: String, fields: Map[String, String], files: Map[String, String]): MultipartEntity = {
     val entity = new MultipartEntity(HttpMultipartMode.STRICT, boundary, Charset.forName("UTF-8"));
     fields foreach tupled { (name, value) =>
       entity.addPart(name, new StringBody(value, Charset.forName("UTF-8")));
@@ -295,8 +295,8 @@ object Hattip {
     }
     entity
   }
-  def post(r: HttpRequestTrait, fields: Array[(String, String)], files: List[(String, String)]): HttpResponse = {
-    val boundary = "thisisaboundary"
+  def post(r: HttpRequestTrait, fields: Map[String, String], files: Map[String, String]): HttpResponse = {
+    val boundary = "hattip" + System.identityHashCode(this) + java.lang.Long.toString(System.currentTimeMillis(), 36)
     val multipart = toMultipart(boundary, fields, files)
     val ex = postPrepare(r)
     ex.setRequestContentType("multipart/form-data, boundary=" + boundary)
