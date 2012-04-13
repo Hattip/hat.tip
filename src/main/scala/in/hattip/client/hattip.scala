@@ -14,6 +14,14 @@ import org.eclipse.jetty.io.{ Buffer => JettyBuffer }
 import org.eclipse.jetty.client.HttpClient
 import java.util.regex.Pattern
 import org.eclipse.jetty.io.ByteArrayBuffer
+import org.eclipse.jetty.util.StringUtil
+import org.apache.http.entity.mime.MultipartEntity
+import org.apache.http.entity.mime.content.StringBody
+import org.apache.http.entity.mime.content.FileBody
+import java.nio.charset.Charset
+import java.io.File
+import java.io.ByteArrayOutputStream
+import org.apache.http.entity.mime.HttpMultipartMode
 
 object Hattip {
   val log = Logger(getClass)
@@ -135,8 +143,8 @@ object Hattip {
   class HttpResponse(val code: HttpResponseCode,
     val headers: Map[String, String],
     val bytes: Array[Byte]) extends HttpResponseTrait {
-    def text(encoding: String) = new String(bytes, encoding)
-    def text = new String(bytes, "utf-8")
+    def text(encoding: String) = if (bytes != null) new String(bytes, encoding) else ""
+    def text = if (bytes != null) new String(bytes, "utf-8") else ""
   }
 
   object Parser {
@@ -275,5 +283,44 @@ object Hattip {
     getClient.send(ex)
     postProcess(ex)
   }
+  private def toMultipart(boundary: String, fields: Array[(String, String)], files: List[(String, String)]): MultipartEntity = {
+    val entity = new MultipartEntity(HttpMultipartMode.STRICT, boundary, Charset.forName("UTF-8"));
+    fields foreach tupled { (name, value) =>
+      entity.addPart(name, new StringBody(value, Charset.forName("UTF-8")));
+    }
+    val fileBody = new FileBody(new File("data/simplefile.txt"));
+    entity.addPart("file", fileBody);
+    files foreach tupled { (name, path) =>
+      entity.addPart(name, new FileBody(new File(path)))
+    }
+    entity
+  }
+  def post(r: HttpRequestTrait, fields: Array[(String, String)], files: List[(String, String)]): HttpResponse = {
+    val boundary = "thisisaboundary"
+    val multipart = toMultipart(boundary, fields, files)
+    val ex = postPrepare(r)
+    ex.setRequestContentType("multipart/form-data, boundary=" + boundary)
+    val outputStream = new ByteArrayOutputStream()
+    multipart.writeTo(outputStream)
+    ex.setRequestContent(new ByteArrayBuffer(outputStream.toByteArray()))
+    log.debug("Content length:" + multipart.getContentLength())
+    log.debug("================ Content ================")
+    log.debug(outputStream.toString())
+    getClient.send(ex)
+    postProcess(ex)
+  }
+
+  //  def postMulti(r: HttpRequestTrait, buffer: DataBuffer): HttpResponse = {
+  //    val ex = postPrepare(r)
+  //    ex.setRequestContentType("multipart/form-data")
+  //    ex.setRequestHeader("boundary", buffer.boundaryString)
+  //    val content = buffer.toBytes
+  //    val contentString = new String(content)
+  //    log.debug("================ Content ================")
+  //    log.debug(contentString)
+  //    ex.setRequestContent(new ByteArrayBuffer(content))
+  //    getClient.send(ex)
+  //    postProcess(ex)
+  //  }
 
 }

@@ -31,7 +31,8 @@ dependencies {
                 'org.eclipse.jetty.aggregate:jetty-client:' + jetty_version,
                 'com.codecommit:anti-xml_2.9.1:0.3',
                 'org.scala-lang:scala-library:' + scalaVersion,
-                'com.weiglewilczek.slf4s:slf4s_' + scalaVersion + ':1.0.7'
+                'com.weiglewilczek.slf4s:slf4s_' + scalaVersion + ':1.0.7',
+		'org.apache.httpcomponents:httpmime:4.1.3'
 
   testCompile   'junit:junit:4.5',
                 'org.specs2:specs2_2.9.1:1.6.1',

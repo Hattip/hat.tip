@@ -23,6 +23,9 @@ import org.eclipse.jetty.security.authentication.BasicAuthenticator
 import org.eclipse.jetty.util.security.Credential
 import org.eclipse.jetty.security.SecurityHandler
 import com.weiglewilczek.slf4s.Logger
+import java.io.FileInputStream
+import java.io.File
+import java.io.BufferedInputStream
 
 @RunWith(classOf[JUnitRunner])
 class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with AfterExample {
@@ -139,6 +142,18 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
         case _ => failure
       }
     }
+    "post file uploads correctly" in {
+      val response = post("http://localhost:8080/multipart",
+        Array(("name", "this is the name"),
+          ("description", "i am sending you a file")),
+        List(("simplefile", "data/simplefile.txt")))
+      response process {
+        case Success() =>
+          response.text must_== "this is the name:i am sending you a file:the quick brown fox jumped over the lazy dog"
+          success
+        case _ => failure
+      }
+    }
   }
 }
 
@@ -185,6 +200,10 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
     (request.getParameterNames().asScala map { name: String =>
       "<parameter name=\"" + name + "\" values=\"" + request.getParameterValues(name).mkString(",") + "\"/>"
     }).toList.mkString("<parameters>", "", "</parameters>")
+  }
+
+  post("/multipart") {
+    "%s:%s:%s" format (params("name"), params("description"), new String(fileParams("simplefile").get()))
   }
 }
 
