@@ -294,8 +294,6 @@ object Hattip {
     fields foreach tupled { (name, value) =>
       entity.addPart(name, new StringBody(value, Charset.forName("UTF-8")));
     }
-    val fileBody = new FileBody(new File("data/simplefile.txt"));
-    entity.addPart("file", fileBody);
     files foreach tupled { (name, path) =>
       entity.addPart(name, new FileBody(new File(path)))
     }
