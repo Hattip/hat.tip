@@ -205,10 +205,7 @@ object Hattip {
     return response
   }
 
-  def getOnce(r: HttpRequestTrait): HttpResponse = {
-    val httpClient = getClient
-    val ex = new HattipContentExchange
-    ex.setURL(r.queryUri)
+  private def setCredentials(r: HttpRequestTrait, ex: HattipContentExchange, httpClient: HttpClient) {
     r.headers foreach tupled(ex.addRequestHeader)
 
     r.credentials foreach { c =>
@@ -233,6 +230,12 @@ object Hattip {
       httpClient.setRealmResolver(resolver)
     }
 
+  }
+  def getOnce(r: HttpRequestTrait): HttpResponse = {
+    val httpClient = getClient
+    val ex = new HattipContentExchange
+    ex.setURL(r.queryUri)
+    setCredentials(r, ex, httpClient)
     httpClient.send(ex)
     ex.waitForDone()
     new HttpResponse(ex.getResponseStatus,
@@ -240,11 +243,11 @@ object Hattip {
       ex.getResponseContentBytes)
   }
 
-  private def postPrepare(r: HttpRequestTrait): HattipContentExchange = {
+  private def postPrepare(r: HttpRequestTrait, httpClient: HttpClient): HattipContentExchange = {
     val ex = new HattipContentExchange
     ex.setMethod("POST")
     ex.setURL(r.uri)
-    r.headers foreach tupled(ex.addRequestHeader)
+    setCredentials(r, ex, httpClient)
     ex
   }
 
@@ -256,31 +259,34 @@ object Hattip {
   }
 
   def post(r: HttpRequestTrait, data: Array[Byte]): HttpResponse = {
-    val ex = postPrepare(r)
+    val httpClient = getClient
+    val ex = postPrepare(r, httpClient)
     ex.setRequestContent(new ByteArrayBuffer(data))
-    getClient.send(ex)
+    httpClient.send(ex)
     postProcess(ex)
   }
 
   def post(r: HttpRequestTrait, data: (String, String)*): HttpResponse = {
-    val ex = postPrepare(r)
+    val httpClient = getClient
+    val ex = postPrepare(r, httpClient)
     ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
     val content = (data map tupled { (key: String, value: String) =>
       URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
     } toList).mkString("&");
     ex.setRequestContent(new ByteArrayBuffer(content getBytes))
-    getClient.send(ex)
+    httpClient.send(ex)
     postProcess(ex)
   }
 
   def post(r: HttpRequestTrait, data: Map[String, String]): HttpResponse = {
-    val ex = postPrepare(r)
+    val httpClient = getClient
+    val ex = postPrepare(r, httpClient)
     ex.setRequestContentType("application/x-www-form-urlencoded;charset=utf-8")
     val content = (data map tupled { (key: String, value: String) =>
       URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
     } toList).mkString("&");
     ex.setRequestContent(new ByteArrayBuffer(content getBytes))
-    getClient.send(ex)
+    httpClient.send(ex)
     postProcess(ex)
   }
   private def toMultipart(boundary: String, fields: Map[String, String], files: Map[String, String]): MultipartEntity = {
@@ -298,7 +304,8 @@ object Hattip {
   def post(r: HttpRequestTrait, fields: Map[String, String], files: Map[String, String]): HttpResponse = {
     val boundary = "hattip" + System.identityHashCode(this) + java.lang.Long.toString(System.currentTimeMillis(), 36)
     val multipart = toMultipart(boundary, fields, files)
-    val ex = postPrepare(r)
+    val httpClient = getClient
+    val ex = postPrepare(r, httpClient)
     ex.setRequestContentType("multipart/form-data, boundary=" + boundary)
     val outputStream = new ByteArrayOutputStream()
     multipart.writeTo(outputStream)
@@ -306,7 +313,7 @@ object Hattip {
     log.debug("Content length:" + multipart.getContentLength())
     log.debug("================ Content ================")
     log.debug(outputStream.toString())
-    getClient.send(ex)
+    httpClient.send(ex)
     postProcess(ex)
   }
 
