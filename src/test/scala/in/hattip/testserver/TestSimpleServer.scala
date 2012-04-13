@@ -26,6 +26,7 @@ import com.weiglewilczek.slf4s.Logger
 import java.io.FileInputStream
 import java.io.File
 import java.io.BufferedInputStream
+import java.io.FileOutputStream
 
 @RunWith(classOf[JUnitRunner])
 class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with AfterExample {
@@ -203,6 +204,13 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
 
   post("/multipart") {
     "%s:%s:%s" format (params("name"), params("description"), new String(fileParams("simplefile").get()))
+  }
+  post("/pdfupload") {
+    val fileparam = fileParams("pdffile")
+    val name = fileparam.getName()
+    val os = new FileOutputStream(new File(name))
+    os.write(fileparam.get())
+    os.close()
   }
 }
 

@@ -304,7 +304,7 @@ object Hattip {
     val multipart = toMultipart(boundary, fields, files)
     val httpClient = getClient
     val ex = postPrepare(r, httpClient)
-    ex.setRequestContentType("multipart/form-data, boundary=" + boundary)
+    ex.setRequestContentType("multipart/form-data; boundary=" + boundary)
     val outputStream = new ByteArrayOutputStream()
     multipart.writeTo(outputStream)
     ex.setRequestContent(new ByteArrayBuffer(outputStream.toByteArray()))
@@ -314,18 +314,4 @@ object Hattip {
     httpClient.send(ex)
     postProcess(ex)
   }
-
-  //  def postMulti(r: HttpRequestTrait, buffer: DataBuffer): HttpResponse = {
-  //    val ex = postPrepare(r)
-  //    ex.setRequestContentType("multipart/form-data")
-  //    ex.setRequestHeader("boundary", buffer.boundaryString)
-  //    val content = buffer.toBytes
-  //    val contentString = new String(content)
-  //    log.debug("================ Content ================")
-  //    log.debug(contentString)
-  //    ex.setRequestContent(new ByteArrayBuffer(content))
-  //    getClient.send(ex)
-  //    postProcess(ex)
-  //  }
-
 }
