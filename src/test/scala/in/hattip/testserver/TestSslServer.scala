@@ -12,6 +12,7 @@ import com.weiglewilczek.slf4s.Logger
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHolder
 import in.hattip.client.Hattip._
+import org.eclipse.jetty.util.ssl.SslContextFactory
 
 @RunWith(classOf[JUnitRunner])
 class TestSslServer extends SpecificationWithJUnit with BeforeExample with AfterExample {
@@ -40,13 +41,15 @@ class SslServlet extends ScalatraServlet with FileUploadSupport {
 
 class SslServer {
   val server = new Server()
-  val connector = new SslSocketConnector()
+  val factory = new SslContextFactory()
+  factory.setKeyStorePath("src/test/resources/keystore")
+  factory.setKeyStorePassword("keystore")
+  factory.setKeyManagerPassword("keystore")
+  factory.setTrustStore("src/test/resources/keystore")
+  factory.setTrustStorePassword("keystore")
+
+  val connector = new SslSocketConnector(factory)
   connector.setPort(8443)
-  connector.setKeystore("src/test/resources/keystore")
-  connector.setKeyPassword("keystore")
-  connector.setPassword("keystore")
-  connector.setTruststore("src/test/resources/keystore")
-  connector.setTrustPassword("keystore")
   server.addConnector(connector)
 
   val context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
