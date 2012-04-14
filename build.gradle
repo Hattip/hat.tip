@@ -32,14 +32,15 @@ dependencies {
                 'com.codecommit:anti-xml_2.9.1:0.3',
                 'org.scala-lang:scala-library:' + scalaVersion,
                 'com.weiglewilczek.slf4s:slf4s_' + scalaVersion + ':1.0.7',
-		'org.apache.httpcomponents:httpmime:4.1.3'
+                'org.apache.httpcomponents:httpmime:4.1.3'
 
   testCompile   'junit:junit:4.5',
                 'org.specs2:specs2_2.9.1:1.6.1',
                 'org.specs2:specs2-scalaz-core_2.9.1:6.0.1',
-                'org.scalatra:scalatra_2.9.1:2.0.4',
-                'org.scalatra:scalatra-auth_2.9.1:2.0.4',
-                'org.scalatra:scalatra-fileupload_2.9.1:2.0.4',
+                'org.scalatra:scalatra_2.9.1:2.1.0.M1',
+                'org.scalatra:scalatra-auth_2.9.1:2.1.0.M1',
+                'org.scalatra:scalatra-fileupload_2.9.1:2.1.0.M1',
+                'org.atmosphere:atmosphere-runtime:0.7.2',
                 'org.eclipse.jetty.toolchain:jetty-test-helper:1.6.1',
                 'org.eclipse.jetty.aggregate:jetty-all-server:' + jetty_version,
                 'org.glassfish:javax.servlet:3.0'
