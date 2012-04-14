@@ -25,9 +25,9 @@ class TestSslServer extends SpecificationWithJUnit with BeforeExample with After
       response process {
         case Success() =>
           response.text must_== "This is the https server"
+          success
         case _ => failure
       }
-      success
     }
   }
 }

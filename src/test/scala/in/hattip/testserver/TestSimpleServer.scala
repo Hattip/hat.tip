@@ -41,9 +41,9 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
       response process {
         case Success() =>
           response.text must_== "This is the test server"
+          success
         case _ => failure
       }
-      success
     }
     "be able to read a xml" in {
       val response = get("http://localhost:8080/dummy.xml")

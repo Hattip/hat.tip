@@ -25,6 +25,8 @@ import com.weiglewilczek.slf4s.Logger
 import org.eclipse.jetty.websocket.WebSocket.Connection
 import org.eclipse.jetty.websocket.WebSocketClientFactory
 import org.eclipse.jetty.websocket.WebSocketClient
+import java.net.URI
+import java.util.concurrent.TimeUnit
 
 object Hattip {
   val log = Logger(getClass)
@@ -386,6 +388,14 @@ object Hattip {
     def close(): Unit = {
       connection.close
     }
+  }
+
+  def open(r: HttpRequestTrait, protocol: String) = {
+    val client = WsConnection(protocol)
+    val wSocket = new WrappedWebSocket
+    val future = client.open(new URI(r.uri), wSocket)
+    val connection = future.get(10, TimeUnit.SECONDS)
+    new WrappedConnection(connection, wSocket)
   }
 }
 
