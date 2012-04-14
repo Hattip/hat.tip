@@ -320,6 +320,22 @@ object Hattip {
     postProcess(ex)
   }
 
+  private def putPrepare(r: HttpRequestTrait, httpClient: HttpClient): HattipContentExchange = {
+    val ex = new HattipContentExchange
+    ex.setMethod("PUT")
+    ex.setURL(r.uri)
+    setCredentials(r, ex, httpClient)
+    ex
+  }
+
+  def put(r: HttpRequestTrait, data: Array[Byte]): HttpResponse = {
+    val httpClient = getClient
+    val ex = putPrepare(r, httpClient)
+    ex.setRequestContent(new ByteArrayBuffer(data))
+    httpClient.send(ex)
+    postProcess(ex)
+  }
+
   object WsConnection {
     private val factory = new WebSocketClientFactory
     factory.start

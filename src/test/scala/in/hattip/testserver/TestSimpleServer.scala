@@ -154,13 +154,44 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
         case _ => failure
       }
     }
+    "put arbitrary data correctly" in {
+      val content = "the quick brown fox jumped over the lazy dog"
+      val uri = "http://localhost:8080/documents/quickbrownfox.txt"
+      val response = put(uri, content getBytes)
+      response process {
+        case Success() =>
+          val getResponse = get(uri)
+          getResponse process {
+            case (Success) =>
+              getResponse.text must_== content
+              success
+            case _ =>
+              failure
+          }
+          success
+        case _ =>
+          log.debug("Received code =>" + response.code)
+          failure
+      }
+    }
   }
 }
 
 class SimpleServlet extends ScalatraServlet with FileUploadSupport {
   val log = Logger(getClass)
+  var documents = Map[String, Array[Byte]]()
   get("/") {
     "This is the test server"
+  }
+
+  put("/documents/*") {
+    val slug = request.pathInfo.replace("/documents/", "")
+    documents += slug -> request.body.getBytes()
+  }
+
+  get("/documents/*") {
+    val slug = request.pathInfo.replace("/documents/", "")
+    documents.getOrElse(slug, "")
   }
 
   get("/dummy.xml") {
