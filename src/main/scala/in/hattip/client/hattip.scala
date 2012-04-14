@@ -1,27 +1,30 @@
 package in.hattip.client
-import scala.Function.tupled
-import com.weiglewilczek.slf4s.Logger
-import java.net.URLEncoder
-import com.codecommit.antixml
-import scala.xml.XML
-import java.io.FileOutputStream
-import org.eclipse.jetty.client.security.HashRealmResolver
-import org.eclipse.jetty.client.security.SimpleRealmResolver
-import org.eclipse.jetty.client.security.Realm
-import scala.collection.mutable.ListBuffer
-import org.eclipse.jetty.client.ContentExchange
-import org.eclipse.jetty.io.{ Buffer => JettyBuffer }
-import org.eclipse.jetty.client.HttpClient
-import java.util.regex.Pattern
-import org.eclipse.jetty.io.ByteArrayBuffer
-import org.eclipse.jetty.util.StringUtil
-import org.apache.http.entity.mime.MultipartEntity
-import org.apache.http.entity.mime.content.StringBody
-import org.apache.http.entity.mime.content.FileBody
-import java.nio.charset.Charset
-import java.io.File
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URLEncoder
+import java.nio.charset.Charset
+import java.util.regex.Pattern
+import scala.Function.tupled
+import scala.collection.mutable.ListBuffer
+import scala.xml.XML
+import org.apache.http.entity.mime.content.FileBody
+import org.apache.http.entity.mime.content.StringBody
 import org.apache.http.entity.mime.HttpMultipartMode
+import org.apache.http.entity.mime.MultipartEntity
+import org.eclipse.jetty.client.security.HashRealmResolver
+import org.eclipse.jetty.client.security.Realm
+import org.eclipse.jetty.client.security.SimpleRealmResolver
+import org.eclipse.jetty.client.ContentExchange
+import org.eclipse.jetty.client.HttpClient
+import org.eclipse.jetty.io.{ Buffer => JettyBuffer }
+import org.eclipse.jetty.io.ByteArrayBuffer
+import org.eclipse.jetty.websocket.WebSocket
+import com.codecommit.antixml
+import com.weiglewilczek.slf4s.Logger
+import org.eclipse.jetty.websocket.WebSocket.Connection
+import org.eclipse.jetty.websocket.WebSocketClientFactory
+import org.eclipse.jetty.websocket.WebSocketClient
 
 object Hattip {
   val log = Logger(getClass)
@@ -314,4 +317,75 @@ object Hattip {
     httpClient.send(ex)
     postProcess(ex)
   }
+
+  object WsConnection {
+    private val factory = new WebSocketClientFactory
+    factory.start
+
+    def apply(protocol: String): WebSocketClient = {
+      val client = factory.newWebSocketClient
+      client setProtocol protocol
+      client
+    }
+  }
+
+  private class WrappedWebSocket extends WebSocket with WebSocket.OnTextMessage with WebSocket.OnBinaryMessage {
+    var connection: Option[Connection] = None
+    var closed = false
+
+    var textHandler: Option[String => Unit] = None
+    var binaryHandler: Option[Array[Byte] => Unit] = None
+
+    def setTextHandler(f: String => Unit): Unit = {
+      textHandler = Some(f)
+    }
+
+    def setBinaryHandler(f: Array[Byte] => Unit) = {
+      binaryHandler = Some(f)
+    }
+
+    def onOpen(connection: Connection): Unit = {
+      this.connection = Some(connection)
+    }
+
+    def onClose(code: Int, message: String): Unit = {
+      connection = None
+    }
+
+    def onMessage(message: String): Unit = {
+      log.debug("Received text message of length " + message.length)
+      textHandler foreach (_(message))
+    }
+
+    def onMessage(data: Array[Byte], offset: Int, length: Int): Unit = {
+      log.debug("Received binary message of length " + length)
+      binaryHandler foreach (_(data.slice(offset, offset + length)))
+    }
+
+  }
+
+  class WrappedConnection(connection: Connection, wSocket: WrappedWebSocket) {
+    def setTextHandler(f: String => Unit): Unit = {
+      wSocket.setTextHandler(f)
+    }
+
+    def setBinaryHandler(f: Array[Byte] => Unit): Unit = {
+      wSocket.setBinaryHandler(f)
+    }
+
+    def !(message: String): Unit = {
+      log.debug("Sending binary message of length " + message.length)
+      connection.sendMessage(message)
+    }
+
+    def !(message: Array[Byte]): Unit = {
+      log.debug("Sending binary message of length " + message.length)
+      connection.sendMessage(message, 0, message.length)
+    }
+
+    def close(): Unit = {
+      connection.close
+    }
+  }
 }
+
