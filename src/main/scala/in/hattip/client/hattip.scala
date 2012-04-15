@@ -248,15 +248,17 @@ object Hattip {
       ex.getResponseContentBytes)
   }
 
-  private def postPrepare(r: HttpRequestTrait, httpClient: HttpClient): HattipContentExchange = {
+  private def prepare(method: String, r: HttpRequestTrait, httpClient: HttpClient): HattipContentExchange = {
     val ex = new HattipContentExchange
-    ex.setMethod("POST")
+    ex.setMethod(method)
     ex.setURL(r.uri)
     setCredentials(r, ex, httpClient)
     ex
   }
 
-  private def postProcess(ex: HattipContentExchange): HttpResponse = {
+  private def postPrepare(r: HttpRequestTrait, httpClient: HttpClient) = prepare("POST", r, httpClient)
+
+  private def complete(ex: HattipContentExchange): HttpResponse = {
     ex.waitForDone()
     new HttpResponse(ex.getResponseStatus,
       ex.headers,
@@ -268,7 +270,7 @@ object Hattip {
     val ex = postPrepare(r, httpClient)
     ex.setRequestContent(new ByteArrayBuffer(data))
     httpClient.send(ex)
-    postProcess(ex)
+    complete(ex)
   }
 
   def post(r: HttpRequestTrait, data: (String, String)*): HttpResponse = {
@@ -280,7 +282,7 @@ object Hattip {
     } toList).mkString("&");
     ex.setRequestContent(new ByteArrayBuffer(content getBytes))
     httpClient.send(ex)
-    postProcess(ex)
+    complete(ex)
   }
 
   def post(r: HttpRequestTrait, data: Map[String, String]): HttpResponse = {
@@ -292,7 +294,7 @@ object Hattip {
     } toList).mkString("&");
     ex.setRequestContent(new ByteArrayBuffer(content getBytes))
     httpClient.send(ex)
-    postProcess(ex)
+    complete(ex)
   }
   private def toMultipart(boundary: String, fields: Map[String, String], files: Map[String, String]): MultipartEntity = {
     val entity = new MultipartEntity(HttpMultipartMode.STRICT, boundary, Charset.forName("UTF-8"));
@@ -317,23 +319,22 @@ object Hattip {
     log.debug("================ Content ================")
     log.debug(outputStream.toString())
     httpClient.send(ex)
-    postProcess(ex)
-  }
-
-  private def putPrepare(r: HttpRequestTrait, httpClient: HttpClient): HattipContentExchange = {
-    val ex = new HattipContentExchange
-    ex.setMethod("PUT")
-    ex.setURL(r.uri)
-    setCredentials(r, ex, httpClient)
-    ex
+    complete(ex)
   }
 
   def put(r: HttpRequestTrait, data: Array[Byte]): HttpResponse = {
     val httpClient = getClient
-    val ex = putPrepare(r, httpClient)
+    val ex = prepare("PUT", r, httpClient)
     ex.setRequestContent(new ByteArrayBuffer(data))
     httpClient.send(ex)
-    postProcess(ex)
+    complete(ex)
+  }
+
+  def delete(r: HttpRequestTrait): HttpResponse = {
+    val httpClient = getClient
+    val ex = prepare("DELETE", r, httpClient)
+    httpClient.send(ex)
+    complete(ex)
   }
 
   object WsConnection {

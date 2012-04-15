@@ -174,6 +174,43 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
           failure
       }
     }
+    "delete documents correctly" in {
+      val content = "lorem ipsum"
+      val uri = "http://localhost:8080/documents/somedoc.txt"
+
+      log.debug("========================> putting document")
+      val response = put(uri, content getBytes)
+      response process {
+        case Success() =>
+          log.debug("========================> getting document")
+          val getResponse = get(uri)
+          log.debug("++++++++++++++++++" + getResponse.code)
+          getResponse process {
+            case (Success) =>
+              getResponse.text must_== content
+              log.debug("========================> deleting document")
+              val deleteResponse = in.hattip.client.Hattip.delete(uri);
+              deleteResponse process {
+                case (Success) =>
+                  log.debug("========================> getting document")
+                  val getResponse2 = get(uri)
+                  getResponse2 process {
+                    case (Success) => failure
+                    case (NotFound) => success
+                    case _ => failure
+                  }
+                case _ => failure
+              }
+
+            case _ =>
+              failure
+          }
+          success
+        case _ =>
+          log.debug("Received code =>" + response.code)
+          failure
+      }
+    }
   }
 }
 
@@ -192,6 +229,15 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
   get("/documents/*") {
     val slug = request.pathInfo.replace("/documents/", "")
     documents.getOrElse(slug, "")
+  }
+
+  delete("/documents/*") {
+    val slug = request.pathInfo.replace("/documents/", "")
+    val doc = documents.get(slug)
+    doc match {
+      case Some(_) => documents -= slug
+      case _ => halt(404, "Document not found")
+    }
   }
 
   get("/dummy.xml") {
