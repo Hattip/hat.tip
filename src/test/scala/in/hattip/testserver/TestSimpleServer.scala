@@ -178,26 +178,23 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
       val content = "lorem ipsum"
       val uri = "http://localhost:8080/documents/somedoc.txt"
 
-      log.debug("========================> putting document")
       val response = put(uri, content getBytes)
       response process {
         case Success() =>
-          log.debug("========================> getting document")
           val getResponse = get(uri)
-          log.debug("++++++++++++++++++" + getResponse.code)
           getResponse process {
-            case (Success) =>
+            case (Success()) =>
               getResponse.text must_== content
-              log.debug("========================> deleting document")
               val deleteResponse = in.hattip.client.Hattip.delete(uri);
               deleteResponse process {
-                case (Success) =>
-                  log.debug("========================> getting document")
+                case (Success()) =>
                   val getResponse2 = get(uri)
                   getResponse2 process {
-                    case (Success) => failure
-                    case (NotFound) => success
-                    case _ => failure
+                    case (Success()) => failure
+                    case (NotFound()) =>
+                      success
+                    case _ =>
+                      failure
                   }
                 case _ => failure
               }
@@ -205,7 +202,6 @@ class TestSimpleServer extends SpecificationWithJUnit with BeforeExample with Af
             case _ =>
               failure
           }
-          success
         case _ =>
           log.debug("Received code =>" + response.code)
           failure
@@ -228,14 +224,18 @@ class SimpleServlet extends ScalatraServlet with FileUploadSupport {
 
   get("/documents/*") {
     val slug = request.pathInfo.replace("/documents/", "")
-    documents.getOrElse(slug, "")
+    documents.get(slug) match {
+      case (Some(data)) => data
+      case (None) => halt(404, "Document not present")
+    }
   }
 
   delete("/documents/*") {
     val slug = request.pathInfo.replace("/documents/", "")
     val doc = documents.get(slug)
     doc match {
-      case Some(_) => documents -= slug
+      case Some(_) =>
+        documents -= slug
       case _ => halt(404, "Document not found")
     }
   }
