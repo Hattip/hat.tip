@@ -1,9 +1,22 @@
+buildscript {
+    repositories { 
+        mavenLocal()
+        mavenCentral() 
+    }
+    dependencies {
+        classpath 'in.vayana.gradle-plugins:gradle-bnd-plugin:0.0.1-SNAPSHOT'
+        classpath 'biz.aQute:bndlib:1.50.0'
+    }
+}
+
+import in.vayana.gradle_plugins.GradleBndPlugin
+
 // hat.tip
 apply plugin: 'idea'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
-apply plugin: 'osgi'
 apply plugin: 'scala'
+apply plugin: GradleBndPlugin
 
 repositories {
     mavenLocal()
@@ -22,13 +35,27 @@ ext.jetty_version = "8.1.0.v20120127"
 
 ext.scalaVersion =  "2.9.1"
 
+configurations {
+    exclusions
+}
+
 dependencies {
   scalaTools    'org.scala-lang:scala-compiler:' + scalaVersion,
                 'org.scala-lang:scala-library:' + scalaVersion
 
   compile       'ch.qos.logback:logback-classic:1.0.0',
-                'org.eclipse.jetty.aggregate:jetty-websocket:' + jetty_version,
-                'org.eclipse.jetty.aggregate:jetty-client:' + jetty_version,
+                //'org.eclipse.jetty.aggregate:jetty-websocket:' + jetty_version,
+                //'org.eclipse.jetty.aggregate:jetty-client:' + jetty_version,
+		'org.eclipse.jetty:jetty-client:' + jetty_version,
+		'org.eclipse.jetty:jetty-websocket:' + jetty_version,
+                'com.codecommit:anti-xml_2.9.1:0.3',
+                'org.scala-lang:scala-library:' + scalaVersion,
+                'com.weiglewilczek.slf4s:slf4s_' + scalaVersion + ':1.0.7',
+                'org.apache.httpcomponents:httpmime:4.1.3'
+
+  exclusions    'ch.qos.logback:logback-classic:1.0.0',
+		'org.eclipse.jetty:jetty-client:' + jetty_version,
+		'org.eclipse.jetty:jetty-websocket:' + jetty_version,
                 'com.codecommit:anti-xml_2.9.1:0.3',
                 'org.scala-lang:scala-library:' + scalaVersion,
                 'com.weiglewilczek.slf4s:slf4s_' + scalaVersion + ':1.0.7',
@@ -55,14 +82,29 @@ project.tasks.install.repositories.mavenInstaller.pom.whenConfigured {pom ->
     }
 }
 
-jar {
-    manifest { 
-        name = 'HatTip'
-        instruction 'Bundle-Vendor', 'Dhananjay Nene'
-        instruction 'Bundle-Description', 'HTTP Made Easy. A scala http client library.'
-        instruction 'Bundle-DocURL', 'http://hattip.in'
-        instruction 'Bundle-Version', project.version.replace('-','.')
-        instruction 'Bundle-Name', project.groupId + "_" + project.artifactId
-        instruction 'Bundle-SymbolicName', project.groupId + "_" + project.artifactId
-    }
+//jar {
+//    manifest { 
+//        name = 'HatTip'
+//        instruction 'Bundle-Vendor', 'Dhananjay Nene'
+//        instruction 'Bundle-Description', 'HTTP Made Easy. A scala http client library.'
+//        instruction 'Bundle-DocURL', 'http://hattip.in'
+//        instruction 'Bundle-Version', project.version.replace('-','.')
+//        instruction 'Bundle-Name', project.groupId + "_" + project.artifactId
+//        instruction 'Bundle-SymbolicName', project.groupId + "_" + project.artifactId
+//    }
+//}
+
+bnd {
+    condense = true
+    includeTestDependencies = false
+    instructions = [
+        'Import-Package': [ '*'].join(','),
+        'Export-Package': 'in.hattip,,*',
+        'Bundle-Activator':'in.hattip.activator.HattipActivator',
+        'Bundle-Description':'Hattip: HTTP Library',
+        'Bundle-Vendor':'Dhananjay Nene',
+        'Bundle-Version': project.version.replace('-','.'),
+        'Bundle-Name': project.groupId + "_" + project.artifactId,
+        'Bundle-SymbolicName': project.groupId + "_" + project.artifactId
+    ]
 }
