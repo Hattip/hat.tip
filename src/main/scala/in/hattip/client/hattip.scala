@@ -344,6 +344,7 @@ object Hattip {
     def apply(protocol: String): WebSocketClient = {
       val client = factory.newWebSocketClient
       client setProtocol protocol
+      client setMaxIdleTime 1800000
       client
     }
   }
