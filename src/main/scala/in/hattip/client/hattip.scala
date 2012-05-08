@@ -259,6 +259,7 @@ object Hattip {
   private def postPrepare(r: HttpRequestTrait, httpClient: HttpClient) = prepare("POST", r, httpClient)
 
   private def complete(ex: HattipContentExchange): HttpResponse = {
+    log.debug("Completing content exchange")
     ex.waitForDone()
     new HttpResponse(ex.getResponseStatus,
       ex.headers,
