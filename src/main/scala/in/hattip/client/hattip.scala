@@ -185,6 +185,8 @@ object Hattip {
 
   def getClient = {
     val httpClient = new HttpClient
+    httpClient setTimeout 150000
+    httpClient setConnectTimeout 15000
     httpClient.start
     httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
     httpClient
