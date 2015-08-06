@@ -316,8 +316,8 @@ object Hattip {
     multipart.writeTo(outputStream)
     ex.setRequestContent(new ByteArrayBuffer(outputStream.toByteArray()))
     log.debug("Content length:" + multipart.getContentLength())
-    log.debug("================ Content ================")
-    log.debug(outputStream.toString())
+    // log.debug("================ Content ================")
+    // log.debug(outputStream.toString())
     httpClient.send(ex)
     complete(ex)
   }
