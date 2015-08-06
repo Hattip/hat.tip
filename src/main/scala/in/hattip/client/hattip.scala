@@ -153,6 +153,9 @@ object Hattip {
   }
 
   object Parser {
+    val httpClient = new HttpClient
+    httpClient.start
+    httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
     val schemePat = "([a-z][\\w-]+)"
     val schemeSep = ":/{1,3}"
     val domainPat = "([a-z0-9.\\-]+)"
@@ -183,12 +186,8 @@ object Hattip {
 
   implicit def strToHttpRequest(str: String): HttpRequest = Parser.parse(str)
 
-  def getClient = {
-    val httpClient = new HttpClient
-    httpClient.start
-    httpClient setConnectorType HttpClient.CONNECTOR_SELECT_CHANNEL
-    httpClient
-  }
+  def getClient = Parser.httpClient
+  
   def get(r: HttpRequestTrait): HttpResponse = {
     var retry = true
     var retryCount = 0
