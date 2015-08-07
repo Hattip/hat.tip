@@ -20,7 +20,7 @@ repositories {
 
 ext.groupId = 'in.hattip'
 ext.artifactId = 'hattip'
-version = '0.0.2-SNAPSHOT'
+version = '0.0.2'
 archivesBaseName = 'hattip'
 group = 'in.hattip'
 
